@@ -1,0 +1,77 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseClient } from "@/lib/supabase";
+import { getWeekRange } from "@/lib/week";
+
+const MAX_STEPS = 100_000;
+const MAX_NAME_LENGTH = 100;
+
+export async function POST(request: NextRequest) {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
+  const { name, email, steps, entry_date } = (body ?? {}) as Record<string, unknown>;
+
+  if (typeof name !== "string" || name.trim().length === 0) {
+    return NextResponse.json({ error: "Name is required." }, { status: 400 });
+  }
+  if (name.trim().length > MAX_NAME_LENGTH) {
+    return NextResponse.json({ error: "Name is too long." }, { status: 400 });
+  }
+  if (email !== undefined && email !== null && email !== "" && typeof email !== "string") {
+    return NextResponse.json({ error: "Email must be a string." }, { status: 400 });
+  }
+  if (typeof steps !== "number" || !Number.isFinite(steps) || !Number.isInteger(steps)) {
+    return NextResponse.json({ error: "Steps must be a whole number." }, { status: 400 });
+  }
+  if (steps < 0 || steps > MAX_STEPS) {
+    return NextResponse.json(
+      { error: `Steps must be between 0 and ${MAX_STEPS.toLocaleString()}.` },
+      { status: 400 }
+    );
+  }
+  if (typeof entry_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(entry_date)) {
+    return NextResponse.json({ error: "Entry date must be in YYYY-MM-DD format." }, { status: 400 });
+  }
+
+  const { startDate, endDate } = getWeekRange();
+  if (entry_date < startDate || entry_date > endDate) {
+    return NextResponse.json(
+      { error: `Entry date must fall within the current week (${startDate} to ${endDate}).` },
+      { status: 400 }
+    );
+  }
+
+  let supabase;
+  try {
+    supabase = getSupabaseClient();
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Supabase is not configured." },
+      { status: 500 }
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("steps")
+    .upsert(
+      {
+        name: name.trim(),
+        email: typeof email === "string" && email.trim() !== "" ? email.trim() : null,
+        steps,
+        entry_date,
+      },
+      { onConflict: "name,entry_date" }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ data }, { status: 200 });
+}
