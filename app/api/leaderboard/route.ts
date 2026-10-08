@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
-import { getStepEntriesInRange } from "@/lib/memoryStore";
+import { listConnections } from "@/lib/fitbitConnections";
+import { maybeLazySync } from "@/lib/fitbitSync";
+import { getStepsInRange } from "@/lib/steps";
 import { getWeekRange } from "@/lib/week";
 
 export type LeaderboardEntry = {
@@ -8,71 +9,60 @@ export type LeaderboardEntry = {
   totalSteps: number;
   daysLogged: number;
   dailyAverage: number;
-  /** Screenshot from the most recent entry_date this week, for spot-checking. */
-  latestScreenshotUrl: string | null;
+  /** Whether this participant currently has a Fitbit connection. */
+  fitbitConnected: boolean;
+  /** Whether that connection is a local demo/mock connection (no real Fitbit account). */
+  isMock: boolean;
 };
 
 export async function GET() {
   const { startDate, endDate } = getWeekRange();
 
-  let rows: { name: string; steps: number; entry_date: string; screenshot_url: string | null }[];
+  // Best-effort, throttled: refresh any stale Fitbit connections' step data
+  // before computing the leaderboard, so results stay reasonably fresh even
+  // without Vercel Cron configured.
+  await maybeLazySync();
 
-  if (!isSupabaseConfigured()) {
-    // Local dev fallback: no Supabase env vars configured.
-    rows = getStepEntriesInRange(startDate, endDate);
-  } else {
-    let supabase;
-    try {
-      supabase = getSupabaseClient();
-    } catch (err) {
-      return NextResponse.json(
-        { error: err instanceof Error ? err.message : "Supabase is not configured." },
-        { status: 500 }
-      );
-    }
-
-    const { data, error } = await supabase
-      .from("steps")
-      .select("name, steps, entry_date, screenshot_url")
-      .gte("entry_date", startDate)
-      .lte("entry_date", endDate);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-    rows = data ?? [];
+  let rows: { name: string; steps: number; entry_date: string }[];
+  try {
+    rows = await getStepsInRange(startDate, endDate);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Failed to load leaderboard." },
+      { status: 500 }
+    );
   }
 
-  const byName = new Map<
-    string,
-    { totalSteps: number; daysLogged: number; latestDate: string; latestScreenshotUrl: string | null }
-  >();
+  const connectionByName = new Map<string, boolean>();
+  try {
+    for (const conn of await listConnections()) {
+      connectionByName.set(conn.name.toLowerCase(), conn.isMock);
+    }
+  } catch {
+    // Non-fatal — leaderboard totals still work even if connection lookup fails.
+  }
+
+  const byName = new Map<string, { totalSteps: number; daysLogged: number }>();
   for (const row of rows) {
-    const existing = byName.get(row.name) ?? {
-      totalSteps: 0,
-      daysLogged: 0,
-      latestDate: "",
-      latestScreenshotUrl: null,
-    };
+    const existing = byName.get(row.name) ?? { totalSteps: 0, daysLogged: 0 };
     existing.totalSteps += row.steps;
     existing.daysLogged += 1;
-    if (row.entry_date >= existing.latestDate) {
-      existing.latestDate = row.entry_date;
-      existing.latestScreenshotUrl = row.screenshot_url ?? existing.latestScreenshotUrl;
-    }
     byName.set(row.name, existing);
   }
 
   const leaderboard: LeaderboardEntry[] = Array.from(byName.entries())
-    .map(([name, { totalSteps, daysLogged, latestScreenshotUrl }]) => ({
-      name,
-      totalSteps,
-      daysLogged,
-      dailyAverage: Math.round(totalSteps / daysLogged),
-      latestScreenshotUrl,
-    }))
+    .map(([name, { totalSteps, daysLogged }]) => {
+      const isMock = connectionByName.get(name.toLowerCase());
+      return {
+        name,
+        totalSteps,
+        daysLogged,
+        dailyAverage: Math.round(totalSteps / daysLogged),
+        fitbitConnected: connectionByName.has(name.toLowerCase()),
+        isMock: isMock ?? false,
+      };
+    })
     .sort((a, b) => b.totalSteps - a.totalSteps);
 
   return NextResponse.json({ leaderboard, startDate, endDate });
 }
-
