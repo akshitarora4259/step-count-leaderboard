@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getSupabaseClient } from "@/lib/supabase";
+import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
+import { getStepEntriesInRange } from "@/lib/memoryStore";
 import { getWeekRange } from "@/lib/week";
 
 export type LeaderboardEntry = {
@@ -12,28 +13,36 @@ export type LeaderboardEntry = {
 export async function GET() {
   const { startDate, endDate } = getWeekRange();
 
-  let supabase;
-  try {
-    supabase = getSupabaseClient();
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Supabase is not configured." },
-      { status: 500 }
-    );
-  }
+  let rows: { name: string; steps: number; entry_date: string }[];
 
-  const { data, error } = await supabase
-    .from("steps")
-    .select("name, steps, entry_date")
-    .gte("entry_date", startDate)
-    .lte("entry_date", endDate);
+  if (!isSupabaseConfigured()) {
+    // Local dev fallback: no Supabase env vars configured.
+    rows = getStepEntriesInRange(startDate, endDate);
+  } else {
+    let supabase;
+    try {
+      supabase = getSupabaseClient();
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Supabase is not configured." },
+        { status: 500 }
+      );
+    }
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { data, error } = await supabase
+      .from("steps")
+      .select("name, steps, entry_date")
+      .gte("entry_date", startDate)
+      .lte("entry_date", endDate);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    rows = data ?? [];
   }
 
   const byName = new Map<string, { totalSteps: number; daysLogged: number }>();
-  for (const row of data ?? []) {
+  for (const row of rows) {
     const existing = byName.get(row.name) ?? { totalSteps: 0, daysLogged: 0 };
     existing.totalSteps += row.steps;
     existing.daysLogged += 1;
@@ -51,3 +60,4 @@ export async function GET() {
 
   return NextResponse.json({ leaderboard, startDate, endDate });
 }
+

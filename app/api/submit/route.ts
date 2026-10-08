@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseClient } from "@/lib/supabase";
+import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
+import { upsertStepEntry } from "@/lib/memoryStore";
 import { getWeekRange } from "@/lib/week";
 
 const MAX_STEPS = 100_000;
@@ -45,6 +46,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const normalizedEmail = typeof email === "string" && email.trim() !== "" ? email.trim() : null;
+
+  // Local dev fallback: no Supabase env vars configured, so use an
+  // in-memory store instead (not persisted, resets on server restart).
+  if (!isSupabaseConfigured()) {
+    const data = upsertStepEntry({
+      name: name.trim(),
+      email: normalizedEmail,
+      steps,
+      entry_date,
+    });
+    return NextResponse.json({ data, store: "memory" }, { status: 200 });
+  }
+
   let supabase;
   try {
     supabase = getSupabaseClient();
@@ -60,7 +75,7 @@ export async function POST(request: NextRequest) {
     .upsert(
       {
         name: name.trim(),
-        email: typeof email === "string" && email.trim() !== "" ? email.trim() : null,
+        email: normalizedEmail,
         steps,
         entry_date,
       },
