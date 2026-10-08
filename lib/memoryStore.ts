@@ -38,6 +38,7 @@ export function upsertStepEntry(input: {
   email: string | null;
   steps: number;
   entry_date: string;
+  screenshot_url: string | null;
 }): StepEntry {
   const rows = store();
   const existing = rows.find(
@@ -47,6 +48,9 @@ export function upsertStepEntry(input: {
   if (existing) {
     existing.email = input.email;
     existing.steps = input.steps;
+    if (input.screenshot_url) {
+      existing.screenshot_url = input.screenshot_url;
+    }
     return existing;
   }
 
@@ -57,6 +61,7 @@ export function upsertStepEntry(input: {
     steps: input.steps,
     entry_date: input.entry_date,
     created_at: new Date().toISOString(),
+    screenshot_url: input.screenshot_url,
   };
   rows.push(entry);
   return entry;

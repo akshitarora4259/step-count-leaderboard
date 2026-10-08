@@ -8,12 +8,14 @@ export type LeaderboardEntry = {
   totalSteps: number;
   daysLogged: number;
   dailyAverage: number;
+  /** Screenshot from the most recent entry_date this week, for spot-checking. */
+  latestScreenshotUrl: string | null;
 };
 
 export async function GET() {
   const { startDate, endDate } = getWeekRange();
 
-  let rows: { name: string; steps: number; entry_date: string }[];
+  let rows: { name: string; steps: number; entry_date: string; screenshot_url: string | null }[];
 
   if (!isSupabaseConfigured()) {
     // Local dev fallback: no Supabase env vars configured.
@@ -31,7 +33,7 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("steps")
-      .select("name, steps, entry_date")
+      .select("name, steps, entry_date, screenshot_url")
       .gte("entry_date", startDate)
       .lte("entry_date", endDate);
 
@@ -41,20 +43,33 @@ export async function GET() {
     rows = data ?? [];
   }
 
-  const byName = new Map<string, { totalSteps: number; daysLogged: number }>();
+  const byName = new Map<
+    string,
+    { totalSteps: number; daysLogged: number; latestDate: string; latestScreenshotUrl: string | null }
+  >();
   for (const row of rows) {
-    const existing = byName.get(row.name) ?? { totalSteps: 0, daysLogged: 0 };
+    const existing = byName.get(row.name) ?? {
+      totalSteps: 0,
+      daysLogged: 0,
+      latestDate: "",
+      latestScreenshotUrl: null,
+    };
     existing.totalSteps += row.steps;
     existing.daysLogged += 1;
+    if (row.entry_date >= existing.latestDate) {
+      existing.latestDate = row.entry_date;
+      existing.latestScreenshotUrl = row.screenshot_url ?? existing.latestScreenshotUrl;
+    }
     byName.set(row.name, existing);
   }
 
   const leaderboard: LeaderboardEntry[] = Array.from(byName.entries())
-    .map(([name, { totalSteps, daysLogged }]) => ({
+    .map(([name, { totalSteps, daysLogged, latestScreenshotUrl }]) => ({
       name,
       totalSteps,
       daysLogged,
       dailyAverage: Math.round(totalSteps / daysLogged),
+      latestScreenshotUrl,
     }))
     .sort((a, b) => b.totalSteps - a.totalSteps);
 

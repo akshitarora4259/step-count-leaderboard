@@ -42,4 +42,40 @@ export type StepEntry = {
   steps: number;
   entry_date: string;
   created_at: string;
+  screenshot_url: string | null;
 };
+
+export const SCREENSHOTS_BUCKET = "screenshots";
+
+/**
+ * Uploads a base64 data URL (as produced by `FileReader.readAsDataURL`) to
+ * the public `screenshots` Supabase Storage bucket and returns its public
+ * URL. The bucket must already exist with public read access and an anon
+ * insert policy (see supabase/migrations/0002_add_screenshot_url.sql and
+ * README.md).
+ */
+export async function uploadScreenshotToSupabase(
+  dataUrl: string,
+  filenameHint: string
+): Promise<string> {
+  const match = /^data:(.+);base64,(.*)$/.exec(dataUrl);
+  if (!match) {
+    throw new Error("Screenshot must be a base64 data URL.");
+  }
+  const [, mimeType, base64] = match;
+  const bytes = Buffer.from(base64, "base64");
+  const extension = mimeType.split("/")[1] ?? "png";
+  const path = `${Date.now()}-${filenameHint.replace(/[^a-zA-Z0-9_-]/g, "_")}.${extension}`;
+
+  const supabase = getSupabaseClient();
+  const { error: uploadError } = await supabase.storage
+    .from(SCREENSHOTS_BUCKET)
+    .upload(path, bytes, { contentType: mimeType, upsert: false });
+
+  if (uploadError) {
+    throw new Error(`Screenshot upload failed: ${uploadError.message}`);
+  }
+
+  const { data } = supabase.storage.from(SCREENSHOTS_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}

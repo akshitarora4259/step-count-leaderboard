@@ -103,6 +103,7 @@ export default function LeaderboardPage() {
                   <th className="px-4 py-2 font-medium text-right">Total steps</th>
                   <th className="px-4 py-2 font-medium text-right">Days logged</th>
                   <th className="px-4 py-2 font-medium text-right">Daily avg</th>
+                  <th className="px-4 py-2 font-medium text-center">Screenshot</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -118,6 +119,25 @@ export default function LeaderboardPage() {
                     <td className="px-4 py-2 text-right tabular-nums">{entry.daysLogged}</td>
                     <td className="px-4 py-2 text-right tabular-nums">
                       {entry.dailyAverage.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2 text-center">
+                      {entry.latestScreenshotUrl ? (
+                        <a
+                          href={entry.latestScreenshotUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="View uploaded screenshot"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element -- small spot-check thumbnail, remote/base64 source */}
+                          <img
+                            src={entry.latestScreenshotUrl}
+                            alt={`${entry.name}'s screenshot`}
+                            className="inline-block h-10 w-10 rounded object-cover border border-gray-200 hover:ring-2 hover:ring-blue-400"
+                          />
+                        </a>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
