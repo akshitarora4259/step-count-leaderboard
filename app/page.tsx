@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getWeekRange, formatWeekPill } from "@/lib/week";
 import { setStoredName, clearStoredName, getStoredName } from "@/lib/clientName";
+import { notify } from "@/lib/toastBus";
 
 type Status =
   | { kind: "unknown" }
@@ -11,29 +12,30 @@ type Status =
   | { kind: "not_connected" }
   | { kind: "connected"; isMock: boolean };
 
-type Banner = { kind: "success" | "error"; message: string };
-
 const HOW_IT_WORKS = [
   {
     number: "1",
-    badgeClass: "blue-bg",
+    badgeClass: "blue",
     icon: "🔗",
+    iconClass: "",
     title: "Connect",
     description: "Link your Fitbit account in seconds. No manual entries, no screenshots.",
   },
   {
     number: "2",
-    badgeClass: "green-bg",
+    badgeClass: "green",
     icon: "↻",
+    iconClass: "green-text",
     title: "Sync",
     description: "Your steps sync automatically each day. You're always up to date.",
   },
   {
     number: "3",
-    badgeClass: "yellow-bg",
+    badgeClass: "yellow",
     icon: "🏆",
-    title: "Climb",
-    description: "See how you're doing on the leaderboard and keep creating impact.",
+    iconClass: "yellow-text",
+    title: "Climb the Leaderboard",
+    description: "See how you're doing and stay motivated with exciting goodies.",
   },
 ];
 
@@ -45,7 +47,6 @@ function Home() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>({ kind: "unknown" });
-  const [banner, setBanner] = useState<Banner | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
 
@@ -90,15 +91,13 @@ function Home() {
       setStoredName(paramName);
     }
     if (connected === "1") {
-      setBanner({
-        kind: "success",
-        message:
-          mock === "1"
-            ? "Connected (demo mode) — sample step data has been generated for this week."
-            : "Connected to Fitbit! Your steps will sync automatically.",
-      });
+      notify(
+        mock === "1"
+          ? "Fitbit connected (demo mode) — sample step data generated for this week."
+          : "Connected to Fitbit! Your steps will sync automatically."
+      );
     } else if (err) {
-      setBanner({ kind: "error", message: `Fitbit connection failed: ${err}` });
+      notify(`Fitbit connection failed: ${err}`);
     }
     // Only run once, on mount — this reads the redirect params/stored name, not live state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,7 +106,7 @@ function Home() {
   function handleConnect() {
     const trimmed = name.trim();
     if (!trimmed) {
-      setBanner({ kind: "error", message: "Please enter your name first." });
+      notify("Please enter your name first.");
       return;
     }
     const params = new URLSearchParams({ name: trimmed });
@@ -119,7 +118,6 @@ function Home() {
     const trimmed = name.trim();
     if (!trimmed) return;
     setDisconnecting(true);
-    setBanner(null);
     try {
       const res = await fetch("/api/fitbit/disconnect", {
         method: "POST",
@@ -130,12 +128,12 @@ function Home() {
       if (res.ok) {
         setStatus({ kind: "not_connected" });
         clearStoredName();
-        setBanner({ kind: "success", message: "Disconnected — your synced step data has been removed." });
+        notify("Disconnected — your synced step data has been removed.");
       } else {
-        setBanner({ kind: "error", message: body.error ?? "Failed to disconnect." });
+        notify(body.error ?? "Failed to disconnect.");
       }
     } catch {
-      setBanner({ kind: "error", message: "Network error — please try again." });
+      notify("Network error — please try again.");
     } finally {
       setDisconnecting(false);
     }
@@ -145,18 +143,17 @@ function Home() {
     const trimmed = name.trim();
     if (!trimmed) return;
     setSyncing(true);
-    setBanner(null);
     try {
       const res = await fetch(`/api/fitbit/sync?name=${encodeURIComponent(trimmed)}`);
       const body = await res.json();
       if (res.ok) {
-        setBanner({ kind: "success", message: "Synced! Check the leaderboard for your latest steps." });
+        notify("Synced! Check the leaderboard for your latest steps.");
       } else {
         const message = body.synced?.[0]?.error ?? body.error ?? "Sync failed.";
-        setBanner({ kind: "error", message });
+        notify(message);
       }
     } catch {
-      setBanner({ kind: "error", message: "Network error — please try again." });
+      notify("Network error — please try again.");
     } finally {
       setSyncing(false);
     }
@@ -165,30 +162,52 @@ function Home() {
   const isConnected = status.kind === "connected";
 
   return (
-    <>
-      <section className="hero page-container">
-        <div className="give-logo">
-          <div className="give">
-            <span className="red">G</span>
-            <span className="green">I</span>
-            <span className="blue">V</span>
-            <span className="yellow">E</span>
-          </div>
-          <div className="challenge">Step Challenge</div>
+    <section id="home" className="view active-view" aria-labelledby="home-title">
+      <div className="home-scene">
+        <div className="sky-orb orb-one" />
+        <div className="sky-orb orb-two" />
+        <div className="tree tree-left" aria-hidden="true">
+          <span />
+          <span />
+          <span />
         </div>
-        <h1>
+        <div className="tree tree-right" aria-hidden="true">
+          <span />
+          <span />
+        </div>
+        <div className="office" aria-hidden="true">
+          <div className="office-logo">
+            <span className="ms-mark tiny">
+              <i />
+              <i />
+              <i />
+              <i />
+            </span>
+          </div>
+          <div className="windows" />
+        </div>
+
+        <div className="give-lockup" aria-label="Give Step Challenge">
+          <div className="give-word">
+            <b>G</b>
+            <b>I</b>
+            <b>V</b>
+            <b>E</b>
+          </div>
+          <div className="script-title">Step Challenge</div>
+        </div>
+        <p className="eyebrow">PEOPLE • PURPOSE • A BRIGHTER TOMORROW</p>
+        <h1 id="home-title">
           Every Step Is a <span>Give</span>
         </h1>
-        <h2>Walk for your health. Give for a better tomorrow.</h2>
-        <div className="date-pill">📅 {datePill}</div>
-        <p className="hero-description">
-          Connect your Fitbit, move together with your Microsoft community, and help us create a
+        <p className="lead">Walk for your health. Give for a better tomorrow.</p>
+        <p className="campaign-date">
+          <span aria-hidden="true">📅</span> {datePill}
+        </p>
+        <p className="intro">
+          Connect your Fitbit, move together with your Microsoft community, and help create a
           healthier, kinder world. Every step you take contributes to real impact.
         </p>
-
-        {banner && (
-          <div className={`inline-banner ${banner.kind}`}>{banner.message}</div>
-        )}
 
         {!isConnected && (
           <div className="connect-form">
@@ -214,46 +233,119 @@ function Home() {
 
         {isConnected ? (
           <div className="connect-form">
-            <button type="button" className="primary-btn" onClick={handleSyncNow} disabled={syncing}>
-              {syncing ? "Syncing…" : "Sync Now ↻"}
+            <button type="button" className="connect-button" onClick={handleSyncNow} disabled={syncing}>
+              <span className="fitbit-dots" aria-hidden="true">
+                ⠿
+              </span>{" "}
+              {syncing ? "Syncing…" : "Sync Now"} <span>↻</span>
             </button>
-            <button type="button" className="secondary-btn" onClick={handleDisconnect} disabled={disconnecting}>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleDisconnect}
+              disabled={disconnecting}
+            >
               {disconnecting ? "Disconnecting…" : "Disconnect"}
             </button>
           </div>
         ) : (
-          <button type="button" className="primary-btn" onClick={handleConnect}>
-            {status.kind === "checking" ? "Checking…" : "Connect Fitbit →"}
+          <button id="connectButton" type="button" className="connect-button" onClick={handleConnect}>
+            <span className="fitbit-dots" aria-hidden="true">
+              ⠿
+            </span>{" "}
+            {status.kind === "checking" ? "Checking…" : "Connect Fitbit"} <span>›</span>
           </button>
         )}
 
-        <div className="privacy">🔒 Secure. Private. You&apos;re in control.</div>
-        <p className="privacy">No wearable? Your phone works too.</p>
-      </section>
+        <p className="privacy">🔒 Secure. Private. You&apos;re in control.</p>
+        <p className="scribble home-scribble">
+          Healthier
+          <br />
+          People
+          <br />
+          Stronger
+          <br />
+          Communities ♡
+        </p>
 
-      <section className="how-it-works page-container">
-        <h2>How it works</h2>
+        <div className="community-impact" aria-label="Community impact illustration">
+          <div className="impact-card-art">
+            <span className="heart">♡</span>
+            <div className="supply-box">▤</div>
+            <div className="person-art small-person" />
+            <div className="person-art small-person second-person" />
+            <p>
+              Brighter
+              <br />
+              Futures
+              <br />
+              Together
+            </p>
+          </div>
+        </div>
+
+        <div className="walkers" aria-label="Illustration of colleagues walking together">
+          <div className="walker w1">
+            <span className="head" />
+            <span className="body" />
+            <span className="leg l1" />
+            <span className="leg l2" />
+          </div>
+          <div className="walker w2">
+            <span className="head" />
+            <span className="body" />
+            <span className="leg l1" />
+            <span className="leg l2" />
+          </div>
+          <div className="walker w3">
+            <span className="head" />
+            <span className="body" />
+            <span className="leg l1" />
+            <span className="leg l2" />
+          </div>
+          <div className="walker w4">
+            <span className="head" />
+            <span className="body" />
+            <span className="leg l1" />
+            <span className="leg l2" />
+          </div>
+        </div>
+      </div>
+
+      <section className="how-section" aria-labelledby="how-title">
+        <h2 id="how-title">How it works</h2>
         <p>Get started in 3 simple steps</p>
-        <div className="steps-grid">
+        <div className="step-grid">
           {HOW_IT_WORKS.map((step) => (
             <article className="step-card" key={step.title}>
-              <span className={`step-number ${step.badgeClass}`}>{step.number}</span>
-              <div className="step-icon">{step.icon}</div>
+              <span className={`step-no ${step.badgeClass}`}>{step.number}</span>
+              <span className={`step-icon ${step.iconClass}`}>{step.icon}</span>
               <h3>{step.title}</h3>
               <p>{step.description}</p>
             </article>
           ))}
         </div>
-      </section>
-
-      <section className="rewards-banner page-container">
-        <div className="reward-icon">🎁</div>
-        <div>
-          <h3>Exciting Goodies Await!</h3>
-          <p>Stay active, make an impact, and win exclusive Microsoft merchandise and special surprises!</p>
+        <div className="goodies-strip">
+          <span className="gift">🎁</span>
+          <div>
+            <strong>Exciting Goodies Await!</strong>
+            <p>
+              Stay active, make an impact, and win exclusive Microsoft merchandise and special
+              surprises!
+            </p>
+          </div>
+          <span className="scribble mini">
+            Move
+            <br />
+            Give
+            <br />
+            Inspire
+            <br />
+            Together ♡
+          </span>
         </div>
       </section>
-    </>
+    </section>
   );
 }
 

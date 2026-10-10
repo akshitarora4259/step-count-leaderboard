@@ -2,35 +2,33 @@ export const metadata = { title: "FAQ — GIVE Step Challenge" };
 
 const FAQS = [
   {
-    q: "Do I need a Fitbit to take part?",
-    a: "A Fitbit makes syncing automatic, but there's no hard requirement — ask the organizers about manual options if you don't have one.",
+    q: "Do I need to enter steps manually?",
+    a: "No. Connect Fitbit once and the experience is designed to sync step totals automatically.",
   },
   {
-    q: "Is my step data shared outside this event?",
-    a: "No. Your name and step counts are only used for this event's leaderboard, and you can disconnect at any time to remove your synced data.",
+    q: "Can I disconnect?",
+    a: "Yes. Use the Disconnect control on the connected (/me) page to opt out at any time.",
+  },
+  {
+    q: "Is there a team leaderboard?",
+    a: "No. The campaign uses one overall leaderboard without team, department or location segmentation.",
   },
   {
     q: "What counts toward the leaderboard?",
     a: "Total steps synced from Monday through Sunday of the current challenge week, summed across all your connected days.",
   },
-  {
-    q: "Can I disconnect and rejoin later?",
-    a: "Yes — disconnecting removes your synced data, and reconnecting with the same name picks up tracking again going forward.",
-  },
 ];
 
 export default function FaqPage() {
   return (
-    <main className="content-section page-container">
-      <h1>Frequently Asked Questions</h1>
-      <div className="steps-grid" style={{ marginTop: 24, gridTemplateColumns: "1fr" }}>
-        {FAQS.map((item) => (
-          <article className="step-card faq-item" key={item.q}>
-            <h3>{item.q}</h3>
-            <p>{item.a}</p>
-          </article>
-        ))}
-      </div>
-    </main>
+    <section id="faq" className="view active-view simple-page">
+      <h1>Frequently asked questions</h1>
+      {FAQS.map((item, i) => (
+        <details key={item.q} open={i === 0}>
+          <summary>{item.q}</summary>
+          <p>{item.a}</p>
+        </details>
+      ))}
+    </section>
   );
 }

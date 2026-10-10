@@ -2,15 +2,23 @@ export const metadata = { title: "About — GIVE Step Challenge" };
 
 export default function AboutPage() {
   return (
-    <main className="content-section page-container">
-      <h1>About the Give Step Challenge</h1>
-      <p className="hero-description" style={{ margin: "16px 0 0", maxWidth: 720 }}>
-        The GIVE Step Challenge is a one-week, internal Microsoft event that turns everyday
-        movement into a shared act of giving. Connect your Fitbit, walk for your health, and watch
-        your steps climb the leaderboard alongside your colleagues — all in support of a healthier,
-        kinder community. There&apos;s no login required beyond your name, and you can disconnect
-        at any time.
+    <section id="about" className="view active-view simple-page">
+      <div className="give-lockup compact">
+        <div className="give-word">
+          <b>G</b>
+          <b>I</b>
+          <b>V</b>
+          <b>E</b>
+        </div>
+        <div className="script-title">Step Challenge</div>
+      </div>
+      <h1>Healthier people. Stronger communities.</h1>
+      <p>
+        The Give Step Challenge combines everyday movement with collective social impact. Connect
+        your Fitbit once, let your steps sync automatically, and follow the overall challenge
+        progress for the current one-week event — no login beyond your name, and you can
+        disconnect at any time.
       </p>
-    </main>
+    </section>
   );
 }
