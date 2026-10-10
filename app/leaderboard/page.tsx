@@ -12,10 +12,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { LeaderboardEntry } from "@/app/api/leaderboard/route";
+import type { LeaderboardEntry, LeaderboardStats } from "@/app/api/leaderboard/route";
 import { Avatar } from "@/components/Avatar";
 import { LeaderboardSkeleton } from "@/components/Skeleton";
 import { AlertIcon, LinkIcon, TrophyIcon } from "@/components/icons";
+import { StatsRow } from "@/components/StatsRow";
+import { formatNumber } from "@/lib/format";
 
 const POLL_INTERVAL_MS = 30_000;
 
@@ -30,6 +32,7 @@ const PODIUM_STYLE = [
 
 export default function LeaderboardPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [stats, setStats] = useState<LeaderboardStats | null>(null);
   const [range, setRange] = useState<{ startDate: string; endDate: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +47,7 @@ export default function LeaderboardPage() {
         return;
       }
       setLeaderboard(body.leaderboard);
+      setStats(body.stats ?? null);
       setRange({ startDate: body.startDate, endDate: body.endDate });
       setError(null);
       setLastUpdated(new Date());
@@ -108,6 +112,13 @@ export default function LeaderboardPage() {
         </div>
       ) : (
         <div className="animate-fade-in">
+          {stats && (
+            <StatsRow
+              participants={stats.participants}
+              totalSteps={stats.totalSteps}
+              averageSteps={stats.averageSteps}
+            />
+          )}
           {/* Podium: top 3 */}
           {top3.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 items-end">
@@ -126,10 +137,10 @@ export default function LeaderboardPage() {
                     <Avatar name={entry.name} size="lg" />
                     <p className="mt-2 font-semibold text-gray-900 truncate">{entry.name}</p>
                     <p className="text-2xl font-bold tabular-nums text-gray-900 mt-1">
-                      {entry.totalSteps.toLocaleString()}
+                      {formatNumber(entry.totalSteps)}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {entry.dailyAverage.toLocaleString()} avg/day · {entry.daysLogged}d
+                      {formatNumber(entry.dailyAverage)} avg/day · {entry.daysLogged}d
                     </p>
                     {entry.fitbitConnected && (
                       <span className="inline-flex items-center gap-1 mt-2 rounded-full bg-msblue/10 text-msblue text-[11px] font-medium px-2 py-0.5">
@@ -161,7 +172,7 @@ export default function LeaderboardPage() {
                   <YAxis tick={{ fontSize: 12, fill: "#6b7280" }} />
                   <Tooltip
                     contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13 }}
-                    formatter={(value) => (value === undefined ? "" : Number(value).toLocaleString())}
+                    formatter={(value) => (value === undefined ? "" : formatNumber(Number(value)))}
                   />
                   <Bar dataKey="steps" radius={[4, 4, 0, 0]}>
                     {top10.map((_, i) => (
@@ -198,11 +209,11 @@ export default function LeaderboardPage() {
                         </div>
                       </td>
                       <td className="px-4 py-2 text-right tabular-nums font-medium text-gray-900">
-                        {entry.totalSteps.toLocaleString()}
+                        {formatNumber(entry.totalSteps)}
                       </td>
                       <td className="px-4 py-2 text-right tabular-nums text-gray-600">{entry.daysLogged}</td>
                       <td className="px-4 py-2 text-right tabular-nums text-gray-600">
-                        {entry.dailyAverage.toLocaleString()}
+                        {formatNumber(entry.dailyAverage)}
                       </td>
                       <td className="px-4 py-2 text-center">
                         {entry.fitbitConnected ? (

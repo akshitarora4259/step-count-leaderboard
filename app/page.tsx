@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getWeekRange } from "@/lib/week";
 import { FootstepsIcon, HeartIcon, LinkIcon, RefreshIcon, UnlinkIcon, CheckCircleIcon, AlertIcon, TrophyIcon } from "@/components/icons";
+import { WalkingIllustration } from "@/components/WalkingIllustration";
+import { ProfileCard } from "@/components/ProfileCard";
 
 type Status =
   | { kind: "unknown" }
@@ -151,19 +153,30 @@ function SubmitForm() {
     <>
       {/* Hero */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 brand-gradient opacity-[0.06]" aria-hidden="true" />
-        <div className="relative max-w-3xl mx-auto px-4 pt-14 pb-10 text-center">
-          <div className="inline-flex items-center justify-center gap-2 text-msblue mb-4">
-            <FootstepsIcon className="w-8 h-8" />
-            <HeartIcon className="w-6 h-6 text-msred" />
+        <div className="absolute inset-0 brand-gradient opacity-[0.05]" aria-hidden="true" />
+        <div className="relative max-w-5xl mx-auto px-4 pt-14 pb-10 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+          <div className="text-center md:text-left">
+            <div className="inline-flex items-center justify-center md:justify-start gap-2 text-msblue mb-4">
+              <FootstepsIcon className="w-8 h-8" />
+              <HeartIcon className="w-6 h-6 text-msred" />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-3">
+              Every Step Is a Give
+            </h1>
+            <p className="text-base text-gray-600 max-w-xl mx-auto md:mx-0 mb-5">
+              Walk for your health. Give for a better tomorrow. Connect your Fitbit once — your
+              steps sync automatically all week, no manual logging — and see how your movement
+              stacks up on the company leaderboard. {startDate} – {endDate}.
+            </p>
+            <a
+              href="#connect"
+              className="inline-flex items-center justify-center gap-2 rounded-lg brand-gradient text-white font-semibold px-6 py-3 text-sm shadow-sm hover:shadow-md hover:brightness-105 active:brightness-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-msblue transition-all"
+            >
+              <LinkIcon className="w-4 h-4" />
+              Connect Fitbit
+            </a>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-3">
-            Every Step Is a Give
-          </h1>
-          <p className="text-base text-gray-600 max-w-xl mx-auto mb-2">
-            One week, every step counts. Connect your Fitbit, let it sync automatically, and see
-            how your movement stacks up on the company leaderboard — {startDate} – {endDate}.
-          </p>
+          <WalkingIllustration className="w-full h-auto max-w-sm mx-auto md:max-w-none" />
         </div>
       </section>
 
@@ -184,7 +197,7 @@ function SubmitForm() {
       </section>
 
       {/* Connect card */}
-      <section className="max-w-md mx-auto px-4 pb-16">
+      <section id="connect" className="max-w-md mx-auto px-4 pb-16 scroll-mt-20">
         <div className="card p-6 space-y-4">
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -296,6 +309,12 @@ function SubmitForm() {
             to see standings update as everyone&apos;s steps sync in.
           </p>
         </div>
+
+        {status.kind === "connected" && name.trim() && (
+          <div className="mt-4">
+            <ProfileCard name={name.trim()} />
+          </div>
+        )}
       </section>
     </>
   );

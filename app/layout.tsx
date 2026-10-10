@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { GiveMark } from "@/components/GiveMark";
+import { GiveLogo } from "@/components/GiveLogo";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,14 +29,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased font-sans`}
     >
       <body className="min-h-full flex flex-col bg-gray-50 text-gray-900">
-        <div className="brand-ribbon" />
         <header className="bg-white/90 backdrop-blur border-b border-gray-200 sticky top-0 z-10">
-          <nav className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2 font-semibold text-gray-800">
-              <GiveMark className="w-5 h-5" />
-              <span>
-                Step Challenge <span className="text-gray-400 font-normal">· Microsoft Give</span>
-              </span>
+          <nav className="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between">
+            <Link href="/">
+              <GiveLogo />
             </Link>
             <div className="flex gap-1 text-sm font-medium">
               <Link

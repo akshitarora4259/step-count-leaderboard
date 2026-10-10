@@ -15,6 +15,12 @@ export type LeaderboardEntry = {
   isMock: boolean;
 };
 
+export type LeaderboardStats = {
+  participants: number;
+  totalSteps: number;
+  averageSteps: number;
+};
+
 export async function GET() {
   const { startDate, endDate } = getWeekRange();
 
@@ -64,5 +70,12 @@ export async function GET() {
     })
     .sort((a, b) => b.totalSteps - a.totalSteps);
 
-  return NextResponse.json({ leaderboard, startDate, endDate });
+  const totalSteps = leaderboard.reduce((sum, entry) => sum + entry.totalSteps, 0);
+  const stats = {
+    participants: leaderboard.length,
+    totalSteps,
+    averageSteps: leaderboard.length ? Math.round(totalSteps / leaderboard.length) : 0,
+  };
+
+  return NextResponse.json({ leaderboard, startDate, endDate, stats });
 }
