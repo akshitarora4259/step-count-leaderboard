@@ -2,7 +2,9 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { getWeekRange } from "@/lib/week";
+import { FootstepsIcon, HeartIcon, LinkIcon, RefreshIcon, UnlinkIcon, CheckCircleIcon, AlertIcon, TrophyIcon } from "@/components/icons";
 
 type Status =
   | { kind: "unknown" }
@@ -11,6 +13,24 @@ type Status =
   | { kind: "connected"; isMock: boolean };
 
 type Banner = { kind: "success" | "error"; message: string };
+
+const HOW_IT_WORKS = [
+  {
+    title: "Connect",
+    description: "Enter your name and link your Fitbit account in one click — read-only access, nothing posted on your behalf.",
+    icon: LinkIcon,
+  },
+  {
+    title: "Sync",
+    description: "Your daily step count syncs automatically all week. No manual logging, no screenshots.",
+    icon: RefreshIcon,
+  },
+  {
+    title: "Climb the leaderboard",
+    description: "Watch your rank update live alongside everyone else giving it their all this week.",
+    icon: TrophyIcon,
+  },
+];
 
 function SubmitForm() {
   const searchParams = useSearchParams();
@@ -128,117 +148,156 @@ function SubmitForm() {
   }
 
   return (
-    <div className="max-w-md mx-auto px-4 py-10">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Join the step challenge 🚶‍♀️</h1>
-      <p className="text-sm text-gray-500 mb-6">
-        This week&apos;s event runs {startDate} – {endDate}. Connect your Fitbit account and we&apos;ll
-        automatically sync your daily step count all week — no manual entry needed.
-      </p>
-
-      <div className="space-y-4 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-            Name
-          </label>
-          <input
-            id="name"
-            type="text"
-            required
-            maxLength={100}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={(e) => checkStatus(e.target.value)}
-            placeholder="Jane Doe"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+    <>
+      {/* Hero */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 brand-gradient opacity-[0.06]" aria-hidden="true" />
+        <div className="relative max-w-3xl mx-auto px-4 pt-14 pb-10 text-center">
+          <div className="inline-flex items-center justify-center gap-2 text-msblue mb-4">
+            <FootstepsIcon className="w-8 h-8" />
+            <HeartIcon className="w-6 h-6 text-msred" />
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-3">
+            Every Step Is a Give
+          </h1>
+          <p className="text-base text-gray-600 max-w-xl mx-auto mb-2">
+            One week, every step counts. Connect your Fitbit, let it sync automatically, and see
+            how your movement stacks up on the company leaderboard — {startDate} – {endDate}.
+          </p>
         </div>
+      </section>
 
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-            Email <span className="text-gray-400 font-normal">(optional)</span>
-          </label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="jane@company.com"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div className="pt-3 border-t border-gray-100">
-          {status.kind === "checking" && <p className="text-sm text-gray-500">Checking connection…</p>}
-
-          {(status.kind === "unknown" || status.kind === "not_connected") && (
-            <>
-              <button
-                type="button"
-                onClick={handleConnect}
-                className="w-full rounded-md bg-[#00B0B9] text-white font-medium py-2 text-sm hover:opacity-90"
-              >
-                🔗 Connect Fitbit
-              </button>
-              <p className="text-xs text-gray-400 mt-2">
-                You&apos;ll be redirected to Fitbit to authorize read-only access to your step count.
-                You can disconnect anytime — see below.
-              </p>
-            </>
-          )}
-
-          {status.kind === "connected" && (
-            <div className="space-y-3">
-              <div className="rounded-md bg-green-50 border border-green-200 text-green-800 text-sm px-3 py-2">
-                ✅ Connected to Fitbit{status.isMock ? " (demo mode — sample data)" : ""}
+      {/* How it works */}
+      <section className="max-w-3xl mx-auto px-4 pb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {HOW_IT_WORKS.map((step, i) => (
+            <div key={step.title} className="card p-5 text-center">
+              <div className="w-10 h-10 rounded-full brand-gradient text-white flex items-center justify-center mx-auto mb-3">
+                <step.icon className="w-5 h-5" />
               </div>
-              <div className="flex gap-2">
+              <p className="text-xs font-semibold text-msblue mb-1">STEP {i + 1}</p>
+              <h3 className="font-semibold text-gray-900 mb-1">{step.title}</h3>
+              <p className="text-sm text-gray-500">{step.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Connect card */}
+      <section className="max-w-md mx-auto px-4 pb-16">
+        <div className="card p-6 space-y-4">
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+              Name
+            </label>
+            <input
+              id="name"
+              type="text"
+              required
+              maxLength={100}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={(e) => checkStatus(e.target.value)}
+              placeholder="Jane Doe"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-msblue/60 focus:border-msblue transition-shadow"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="jane@company.com"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-msblue/60 focus:border-msblue transition-shadow"
+            />
+          </div>
+
+          <div className="pt-3 border-t border-gray-100">
+            {status.kind === "checking" && <p className="text-sm text-gray-500">Checking connection…</p>}
+
+            {(status.kind === "unknown" || status.kind === "not_connected") && (
+              <>
                 <button
                   type="button"
-                  onClick={handleSyncNow}
-                  disabled={syncing}
-                  className="flex-1 rounded-md border border-gray-300 text-gray-700 font-medium py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+                  onClick={handleConnect}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg brand-gradient text-white font-semibold py-2.5 text-sm shadow-sm hover:shadow-md hover:brightness-105 active:brightness-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-msblue transition-all"
                 >
-                  {syncing ? "Syncing…" : "Sync now"}
+                  <LinkIcon className="w-4 h-4" />
+                  Connect Fitbit
                 </button>
-                <button
-                  type="button"
-                  onClick={handleDisconnect}
-                  disabled={disconnecting}
-                  className="flex-1 rounded-md border border-red-300 text-red-700 font-medium py-2 text-sm hover:bg-red-50 disabled:opacity-50"
-                >
-                  {disconnecting ? "Disconnecting…" : "Disconnect"}
-                </button>
+                <p className="text-xs text-gray-400 mt-2">
+                  You&apos;ll be redirected to Fitbit to authorize read-only access to your step count.
+                  You can disconnect anytime — see below.
+                </p>
+              </>
+            )}
+
+            {status.kind === "connected" && (
+              <div className="space-y-3 animate-fade-in">
+                <div className="flex items-center gap-2 rounded-lg bg-msgreen/10 border border-msgreen/30 text-[#4d7300] text-sm px-3 py-2">
+                  <CheckCircleIcon className="w-4 h-4 shrink-0" />
+                  Connected to Fitbit{status.isMock ? " (demo mode — sample data)" : ""}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSyncNow}
+                    disabled={syncing}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 text-gray-700 font-medium py-2 text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                  >
+                    <RefreshIcon className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+                    {syncing ? "Syncing…" : "Sync now"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDisconnect}
+                    disabled={disconnecting}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-msred/40 text-msred font-medium py-2 text-sm hover:bg-msred/5 disabled:opacity-50 transition-colors"
+                  >
+                    <UnlinkIcon className="w-4 h-4" />
+                    {disconnecting ? "Disconnecting…" : "Disconnect"}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400">
+                  Disconnecting revokes Fitbit&apos;s access and removes your synced step data from
+                  this event.
+                </p>
               </div>
-              <p className="text-xs text-gray-400">
-                Disconnecting revokes Fitbit&apos;s access and removes your synced step data from
-                this event.
-              </p>
+            )}
+          </div>
+
+          {banner && (
+            <div
+              className={`flex items-start gap-2 rounded-lg border text-sm px-3 py-2 animate-fade-in ${
+                banner.kind === "success"
+                  ? "bg-msgreen/10 border-msgreen/30 text-[#4d7300]"
+                  : "bg-msred/10 border-msred/30 text-msred"
+              }`}
+            >
+              {banner.kind === "success" ? (
+                <CheckCircleIcon className="w-4 h-4 mt-0.5 shrink-0" />
+              ) : (
+                <AlertIcon className="w-4 h-4 mt-0.5 shrink-0" />
+              )}
+              {banner.message}
             </div>
           )}
+
+          <p className="text-xs text-gray-400 pt-3 border-t border-gray-100">
+            Check the{" "}
+            <Link href="/leaderboard" className="underline font-medium text-msblue">
+              leaderboard
+            </Link>{" "}
+            to see standings update as everyone&apos;s steps sync in.
+          </p>
         </div>
-
-        {banner && (
-          <div
-            className={`rounded-md border text-sm px-3 py-2 ${
-              banner.kind === "success"
-                ? "bg-green-50 border-green-200 text-green-800"
-                : "bg-red-50 border-red-200 text-red-800"
-            }`}
-          >
-            {banner.kind === "success" ? "✅ " : "⚠️ "}
-            {banner.message}
-          </div>
-        )}
-
-        <p className="text-xs text-gray-400 pt-3 border-t border-gray-100">
-          Check the{" "}
-          <a href="/leaderboard" className="underline font-medium">
-            leaderboard
-          </a>{" "}
-          to see standings update as everyone&apos;s steps sync in.
-        </p>
-      </div>
-    </div>
+      </section>
+    </>
   );
 }
 
