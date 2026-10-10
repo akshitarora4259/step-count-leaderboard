@@ -1,44 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import type { LeaderboardEntry, LeaderboardStats } from "@/app/api/leaderboard/route";
-import { Avatar } from "@/components/Avatar";
-import { LeaderboardSkeleton } from "@/components/Skeleton";
-import { AlertIcon, CrownIcon, LinkIcon, QuoteIcon, TrophyIcon } from "@/components/icons";
-import { StatsRow } from "@/components/StatsRow";
-import { formatNumber } from "@/lib/format";
+import { formatCompactNumber, formatNumber } from "@/lib/format";
+import { formatWeekPill, getWeekRange } from "@/lib/week";
+import { COMMUNITY_IMPACT_GOAL_USD } from "@/lib/constants";
 
 const POLL_INTERVAL_MS = 30_000;
 const VISIBLE_ROWS = 10;
 
-// Cycled across bars/podium accents so colors read as "brand", not random.
-const BRAND_CYCLE = ["#F25022", "#7FBA00", "#00A4EF", "#FFB900"];
-
-const PODIUM_STYLE = [
-  { border: "border-[#FFB900]/50", bg: "bg-[#FFB900]/10", medal: "🥇", order: "sm:order-2" },
-  { border: "border-gray-300", bg: "bg-gray-50", medal: "🥈", order: "sm:order-1" },
-  { border: "border-[#F25022]/40", bg: "bg-[#F25022]/5", medal: "🥉", order: "sm:order-3" },
-];
-
 export default function LeaderboardPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [stats, setStats] = useState<LeaderboardStats | null>(null);
-  const [range, setRange] = useState<{ startDate: string; endDate: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [showAll, setShowAll] = useState(false);
+
+  const weekRange = useMemo(() => getWeekRange(), []);
+  const datePill = useMemo(() => formatWeekPill(weekRange), [weekRange]);
 
   async function fetchLeaderboard() {
     try {
@@ -50,9 +30,7 @@ export default function LeaderboardPage() {
       }
       setLeaderboard(body.leaderboard);
       setStats(body.stats ?? null);
-      setRange({ startDate: body.startDate, endDate: body.endDate });
       setError(null);
-      setLastUpdated(new Date());
     } catch {
       setError("Network error — please try again.");
     } finally {
@@ -66,195 +44,137 @@ export default function LeaderboardPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const top3 = leaderboard.slice(0, 3);
   const leader = leaderboard[0];
+  const top3 = leaderboard.slice(0, 3);
+  // Podium visual order is second / first / third, per the design spec.
+  const podiumOrder = [top3[1], top3[0], top3[2]];
   const visibleRows = showAll ? leaderboard : leaderboard.slice(0, VISIBLE_ROWS);
-  const top10 = leaderboard.slice(0, 10).map((entry) => ({
-    name: entry.name,
-    steps: entry.totalSteps,
-  }));
 
-  return (
-    <div className="max-w-3xl mx-auto px-4 py-10">
-      <div className="flex items-baseline justify-between mb-1">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <TrophyIcon className="w-6 h-6 text-msyellow" />
-          Leaderboard
-        </h1>
-        {lastUpdated && (
-          <span className="text-xs text-gray-400">Updated {lastUpdated.toLocaleTimeString()}</span>
-        )}
-      </div>
-      {range && (
-        <p className="text-sm text-gray-500 mb-6">
-          Current week: {range.startDate} – {range.endDate}
-        </p>
-      )}
+  // "72%"-style week-completion stat: reuses the already-computed average
+  // days-logged-out-of-7 across participants from the leaderboard API.
+  const completionPercent = stats?.completionPercent ?? 0;
 
-      {error && (
-        <div className="flex items-center gap-2 rounded-lg bg-msred/10 border border-msred/30 text-msred text-sm px-3 py-2 mb-6">
-          <AlertIcon className="w-4 h-4 shrink-0" />
-          {error}
-        </div>
-      )}
+  if (loading) {
+    return (
+      <main className="leaderboard-page page-container">
+        <p className="empty-state">Loading leaderboard…</p>
+      </main>
+    );
+  }
 
-      {loading ? (
-        <LeaderboardSkeleton />
-      ) : leaderboard.length === 0 ? (
-        <div className="card p-8 text-center">
-          <p className="text-sm text-gray-500 mb-3">
-            No entries yet this week. Be the first to connect and start syncing!
-          </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-msblue hover:underline"
-          >
-            <LinkIcon className="w-4 h-4" />
+  if (error) {
+    return (
+      <main className="leaderboard-page page-container">
+        <div className="inline-banner error">{error}</div>
+      </main>
+    );
+  }
+
+  if (leaderboard.length === 0) {
+    return (
+      <main className="leaderboard-page page-container">
+        <div className="empty-state">
+          <p>No entries yet this week. Be the first to connect and start syncing!</p>
+          <Link href="/" className="muted-link">
             Connect Fitbit
           </Link>
         </div>
-      ) : (
-        <div className="animate-fade-in">
-          {stats && (
-            <StatsRow
-              participants={stats.participants}
-              totalSteps={stats.totalSteps}
-              averageSteps={stats.averageSteps}
-              completionPercent={stats.completionPercent}
-            />
-          )}
+      </main>
+    );
+  }
 
-          {/* Top 3 Champions podium */}
-          {top3.length > 0 && (
-            <>
-              <h2 className="text-sm font-semibold text-gray-700 mb-3">Top 3 Champions</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 items-end">
-                {top3.map((entry, i) => {
-                  const style = PODIUM_STYLE[i];
-                  return (
-                    <div
-                      key={entry.name}
-                      className={`card ${style.order} ${style.bg} ${style.border} border-2 p-5 text-center relative overflow-hidden ${
-                        i === 0 ? "sm:scale-105 sm:shadow-md" : ""
-                      }`}
-                    >
-                      {i === 0 && (
-                        <CrownIcon className="w-6 h-6 text-msyellow mx-auto mb-0.5 drop-shadow-sm" />
-                      )}
-                      <div className="text-2xl mb-1" aria-hidden="true">
-                        {style.medal}
-                      </div>
-                      <Avatar name={entry.name} size="lg" />
-                      <p className="mt-2 font-semibold text-gray-900 truncate">{entry.name}</p>
-                      <p className="text-2xl font-bold tabular-nums text-gray-900 mt-1">
-                        {formatNumber(entry.totalSteps)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {formatNumber(entry.dailyAverage)} avg/day · {entry.daysLogged}d
-                      </p>
-                      {entry.fitbitConnected && (
-                        <span className="inline-flex items-center gap-1 mt-2 rounded-full bg-msblue/10 text-msblue text-[11px] font-medium px-2 py-0.5">
-                          <LinkIcon className="w-3 h-3" />
-                          Fitbit{entry.isMock ? " (demo)" : ""}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-
-          {/* Full ranked list with per-row mini progress bars */}
-          <div className="card overflow-hidden mb-8">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-700">
-                Top {Math.min(leaderboard.length, VISIBLE_ROWS)} Leaderboard
-              </h2>
-              {leaderboard.length > VISIBLE_ROWS && (
-                <button
-                  type="button"
-                  onClick={() => setShowAll((v) => !v)}
-                  className="text-xs font-medium text-msblue hover:underline"
-                >
-                  {showAll ? "Show top 10" : `View all (${leaderboard.length})`}
-                </button>
-              )}
-            </div>
-            <ul className="divide-y divide-gray-100">
-              {visibleRows.map((entry, i) => {
-                const pct = leader ? Math.max(4, Math.round((entry.totalSteps / leader.totalSteps) * 100)) : 0;
-                return (
-                  <li
-                    key={entry.name}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50/80 transition-colors"
-                  >
-                    <span className="w-5 text-sm font-semibold text-gray-400 tabular-nums text-center shrink-0">
-                      {i + 1}
-                    </span>
-                    <Avatar name={entry.name} size="sm" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="font-semibold text-gray-900 truncate">{entry.name}</span>
-                        <span className="font-bold tabular-nums text-gray-900 shrink-0">
-                          {formatNumber(entry.totalSteps)}
-                        </span>
-                      </div>
-                      <div className="mt-1.5 h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
-                        <div
-                          className="h-full rounded-full"
-                          style={{
-                            width: `${pct}%`,
-                            background: BRAND_CYCLE[i % BRAND_CYCLE.length],
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+  return (
+    <main className="leaderboard-page page-container">
+      <section className="leaderboard-heading">
+        <div>
+          <div className="give-logo small">
+            <strong>GIVE</strong>
+            <span>Step Challenge</span>
           </div>
+          <div className="date-pill">📅 {datePill}</div>
+        </div>
+        <span className="handwritten">
+          Small Steps
+          <br />
+          Big Impact ♡
+        </span>
+      </section>
 
-          {/* Supplementary bar chart */}
-          <div className="card p-4 mb-8">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">Top 10 by total steps</h2>
-            <div style={{ width: "100%", height: 220 }}>
-              <ResponsiveContainer>
-                <BarChart data={top10} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eef0f2" />
-                  <XAxis
-                    dataKey="name"
-                    tick={{ fontSize: 12, fill: "#6b7280" }}
-                    interval={0}
-                    angle={-20}
-                    textAnchor="end"
-                    height={50}
-                  />
-                  <YAxis tick={{ fontSize: 12, fill: "#6b7280" }} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13 }}
-                    formatter={(value) => (value === undefined ? "" : formatNumber(Number(value)))}
-                  />
-                  <Bar dataKey="steps" radius={[4, 4, 0, 0]}>
-                    {top10.map((_, i) => (
-                      <Cell key={i} fill={BRAND_CYCLE[i % BRAND_CYCLE.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+      <section className="stats-grid">
+        <article className="stat-card">
+          <span>👥</span>
+          <strong>{formatNumber(stats?.participants ?? 0)}</strong>
+          <small>Participants</small>
+        </article>
+        <article className="stat-card">
+          <span>👣</span>
+          <strong>{formatCompactNumber(stats?.totalSteps ?? 0)}</strong>
+          <small>Total Steps</small>
+        </article>
+        <article className="stat-card">
+          <span>♥</span>
+          {/* Placeholder fundraising goal — see lib/constants.ts. */}
+          <strong>${formatNumber(COMMUNITY_IMPACT_GOAL_USD)}</strong>
+          <small>Community Impact Goal</small>
+        </article>
+        <article className="stat-card">
+          <strong className="progress-circle" style={{ "--pct": completionPercent } as React.CSSProperties}>
+            {completionPercent}%
+          </strong>
+        </article>
+      </section>
 
-          {/* Quote banner */}
-          <div className="text-center py-6">
-            <QuoteIcon className="w-5 h-5 text-msblue/40 mx-auto mb-2" />
-            <p className="text-sm sm:text-base font-medium text-gray-600 italic max-w-md mx-auto">
-              When we walk together, we give together.
-            </p>
+      <section className="leaderboard-card">
+        <div className="section-heading">
+          <div>
+            <h1>Overall Leaderboard</h1>
+            <p>Total steps from {datePill}</p>
           </div>
         </div>
-      )}
-    </div>
+
+        {top3.length === 3 && (
+          <div className="podium">
+            {podiumOrder.map((entry, i) => {
+              const rank = i === 1 ? 1 : i === 0 ? 2 : 3;
+              const positionClass = rank === 1 ? "first" : rank === 2 ? "second" : "third";
+              return (
+                <article className={`podium-item ${positionClass}`} key={entry.name}>
+                  <div className="illustrated-avatar">🏃</div>
+                  <span className="rank">{rank}</span>
+                  <strong>{formatNumber(entry.totalSteps)}</strong>
+                  <small>steps</small>
+                </article>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="rankings">
+          {visibleRows.map((entry, i) => {
+            const progress = leader ? Math.max(4, Math.round((entry.totalSteps / leader.totalSteps) * 100)) : 0;
+            return (
+              <div className="ranking-row" key={entry.name}>
+                <span className="rank-num">#{i + 1}</span>
+                <div className="avatar-placeholder" />
+                <strong>{entry.name}</strong>
+                <span className="steps">{formatNumber(entry.totalSteps)}</span>
+                <div className="bar" style={{ "--progress": `${progress}%` } as React.CSSProperties} />
+              </div>
+            );
+          })}
+        </div>
+
+        {leaderboard.length > VISIBLE_ROWS && (
+          <button type="button" className="view-all-link" onClick={() => setShowAll((v) => !v)}>
+            {showAll ? "Show top 10" : `View All (${leaderboard.length})`}
+          </button>
+        )}
+      </section>
+
+      <blockquote>
+        &ldquo;When we move together, we create change together.&rdquo;
+        <small>Microsoft Give</small>
+      </blockquote>
+    </main>
   );
 }

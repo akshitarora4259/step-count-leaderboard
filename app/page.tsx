@@ -2,13 +2,8 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { getWeekRange } from "@/lib/week";
-import { LinkIcon, RefreshIcon, UnlinkIcon, CheckCircleIcon, AlertIcon } from "@/components/icons";
-import { GiveLogo } from "@/components/GiveLogo";
-import { WalkingIllustration } from "@/components/WalkingIllustration";
-import { ProfileCard } from "@/components/ProfileCard";
-import { setStoredName, clearStoredName } from "@/lib/clientName";
+import { getWeekRange, formatWeekPill } from "@/lib/week";
+import { setStoredName, clearStoredName, getStoredName } from "@/lib/clientName";
 
 type Status =
   | { kind: "unknown" }
@@ -20,22 +15,33 @@ type Banner = { kind: "success" | "error"; message: string };
 
 const HOW_IT_WORKS = [
   {
+    number: "1",
+    badgeClass: "blue-bg",
+    icon: "🔗",
     title: "Connect",
-    description: "Enter your name and link your Fitbit account in one click — read-only access, nothing posted on your behalf.",
+    description: "Link your Fitbit account in seconds. No manual entries, no screenshots.",
   },
   {
+    number: "2",
+    badgeClass: "green-bg",
+    icon: "↻",
     title: "Sync",
-    description: "Your daily step count syncs automatically all week. No manual logging, no screenshots.",
+    description: "Your steps sync automatically each day. You're always up to date.",
   },
   {
-    title: "Climb the leaderboard",
-    description: "Watch your rank update live alongside everyone else giving it their all this week.",
+    number: "3",
+    badgeClass: "yellow-bg",
+    icon: "🏆",
+    title: "Climb",
+    description: "See how you're doing on the leaderboard and keep creating impact.",
   },
 ];
 
-function SubmitForm() {
+function Home() {
   const searchParams = useSearchParams();
-  const { startDate, endDate } = useMemo(() => getWeekRange(), []);
+  const weekRange = useMemo(() => getWeekRange(), []);
+  const datePill = useMemo(() => formatWeekPill(weekRange), [weekRange]);
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>({ kind: "unknown" });
@@ -64,10 +70,13 @@ function SubmitForm() {
     }
   }, []);
 
-  // On first render, pick up state from the OAuth redirect back from
-  // /api/fitbit/connect or /api/fitbit/callback (connected=1&name=...,
-  // mock=1, or fitbit_error=...).
   useEffect(() => {
+    const stored = getStoredName();
+    if (stored) {
+      setName(stored);
+      checkStatus(stored);
+    }
+
     const paramName = searchParams.get("name");
     const connected = searchParams.get("connected");
     const mock = searchParams.get("mock");
@@ -91,7 +100,7 @@ function SubmitForm() {
     } else if (err) {
       setBanner({ kind: "error", message: `Fitbit connection failed: ${err}` });
     }
-    // Only run once, on mount — this reads the redirect params, not live state.
+    // Only run once, on mount — this reads the redirect params/stored name, not live state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -153,195 +162,105 @@ function SubmitForm() {
     }
   }
 
+  const isConnected = status.kind === "connected";
+
   return (
     <>
-      {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 brand-gradient opacity-[0.05]" aria-hidden="true" />
-        <div className="relative max-w-5xl mx-auto px-4 pt-14 pb-10 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-          <div className="text-center md:text-left">
-            <GiveLogo size="lg" className="justify-center md:justify-start mb-5" />
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-3">
-              Every Step Is a Give
-            </h1>
-            <p className="text-base text-gray-600 max-w-xl mx-auto md:mx-0 mb-3">
-              Walk for your health. Give for a better tomorrow.
-            </p>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 text-gray-600 text-xs font-medium px-3 py-1 mb-6">
-              {startDate} – {endDate}
-            </span>
-            <div>
-              <a
-                href="#connect"
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-msblue text-white font-semibold px-7 py-3 text-sm shadow-sm hover:shadow-md hover:bg-[#0092d6] active:bg-[#007fb8] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-msblue transition-all"
-              >
-                <LinkIcon className="w-4 h-4" />
-                Connect Fitbit
-              </a>
-              <p className="text-xs text-gray-400 mt-2.5">
-                No wearable? Your phone works too.
-              </p>
-            </div>
+      <section className="hero page-container">
+        <div className="give-logo">
+          <div className="give">
+            <span className="red">G</span>
+            <span className="green">I</span>
+            <span className="blue">V</span>
+            <span className="yellow">E</span>
           </div>
-          <WalkingIllustration className="w-full h-auto max-w-sm mx-auto md:max-w-none" />
+          <div className="challenge">Step Challenge</div>
         </div>
-      </section>
-
-      {/* How it works */}
-      <section className="bg-gray-50/60 py-10">
-        <div className="max-w-3xl mx-auto px-4">
-          <h2 className="text-center text-sm font-semibold text-gray-500 uppercase tracking-wide mb-6">
-            How it works
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {HOW_IT_WORKS.map((step, i) => (
-              <div key={step.title} className="card p-5 text-center">
-                <div className="w-10 h-10 rounded-full brand-gradient text-white flex items-center justify-center mx-auto mb-3 text-base font-bold">
-                  {i + 1}
-                </div>
-                <h3 className="font-semibold text-gray-900 mb-1">{step.title}</h3>
-                <p className="text-sm text-gray-500">{step.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Closing tagline */}
-      <section className="py-8 text-center">
-        <p className="text-sm sm:text-base font-medium text-gray-600 italic max-w-md mx-auto px-4">
-          Together, we turn small steps into real change.
+        <h1>
+          Every Step Is a <span>Give</span>
+        </h1>
+        <h2>Walk for your health. Give for a better tomorrow.</h2>
+        <div className="date-pill">📅 {datePill}</div>
+        <p className="hero-description">
+          Connect your Fitbit, move together with your Microsoft community, and help us create a
+          healthier, kinder world. Every step you take contributes to real impact.
         </p>
-      </section>
 
-      {/* Connect card */}
-      <section id="connect" className="max-w-md mx-auto px-4 pb-16 scroll-mt-20">
-        <div className="card p-6 space-y-4">
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-              Name
-            </label>
+        {banner && (
+          <div className={`inline-banner ${banner.kind}`}>{banner.message}</div>
+        )}
+
+        {!isConnected && (
+          <div className="connect-form">
             <input
-              id="name"
               type="text"
               required
               maxLength={100}
               value={name}
               onChange={(e) => setName(e.target.value)}
               onBlur={(e) => checkStatus(e.target.value)}
-              placeholder="Jane Doe"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-msblue/60 focus:border-msblue transition-shadow"
+              placeholder="Your name"
+              aria-label="Your name"
             />
-          </div>
-
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email <span className="text-gray-400 font-normal">(optional)</span>
-            </label>
             <input
-              id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="jane@company.com"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-msblue/60 focus:border-msblue transition-shadow"
+              placeholder="Email (optional)"
+              aria-label="Email (optional)"
             />
           </div>
-
-          <div className="pt-3 border-t border-gray-100">
-            {status.kind === "checking" && <p className="text-sm text-gray-500">Checking connection…</p>}
-
-            {(status.kind === "unknown" || status.kind === "not_connected") && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleConnect}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg brand-gradient text-white font-semibold py-2.5 text-sm shadow-sm hover:shadow-md hover:brightness-105 active:brightness-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-msblue transition-all"
-                >
-                  <LinkIcon className="w-4 h-4" />
-                  Connect Fitbit
-                </button>
-                <p className="text-xs text-gray-400 mt-2">
-                  You&apos;ll be redirected to Fitbit to authorize read-only access to your step count.
-                  You can disconnect anytime — see below.
-                </p>
-              </>
-            )}
-
-            {status.kind === "connected" && (
-              <div className="space-y-3 animate-fade-in">
-                <div className="flex items-center gap-2 rounded-lg bg-msgreen/10 border border-msgreen/30 text-[#4d7300] text-sm px-3 py-2">
-                  <CheckCircleIcon className="w-4 h-4 shrink-0" />
-                  Connected to Fitbit{status.isMock ? " (demo mode — sample data)" : ""}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={handleSyncNow}
-                    disabled={syncing}
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 text-gray-700 font-medium py-2 text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                  >
-                    <RefreshIcon className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-                    {syncing ? "Syncing…" : "Sync now"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDisconnect}
-                    disabled={disconnecting}
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-msred/40 text-msred font-medium py-2 text-sm hover:bg-msred/5 disabled:opacity-50 transition-colors"
-                  >
-                    <UnlinkIcon className="w-4 h-4" />
-                    {disconnecting ? "Disconnecting…" : "Disconnect"}
-                  </button>
-                </div>
-                <p className="text-xs text-gray-400">
-                  Disconnecting revokes Fitbit&apos;s access and removes your synced step data from
-                  this event.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {banner && (
-            <div
-              className={`flex items-start gap-2 rounded-lg border text-sm px-3 py-2 animate-fade-in ${
-                banner.kind === "success"
-                  ? "bg-msgreen/10 border-msgreen/30 text-[#4d7300]"
-                  : "bg-msred/10 border-msred/30 text-msred"
-              }`}
-            >
-              {banner.kind === "success" ? (
-                <CheckCircleIcon className="w-4 h-4 mt-0.5 shrink-0" />
-              ) : (
-                <AlertIcon className="w-4 h-4 mt-0.5 shrink-0" />
-              )}
-              {banner.message}
-            </div>
-          )}
-
-          <p className="text-xs text-gray-400 pt-3 border-t border-gray-100">
-            Check the{" "}
-            <Link href="/leaderboard" className="underline font-medium text-msblue">
-              leaderboard
-            </Link>{" "}
-            to see standings update as everyone&apos;s steps sync in.
-          </p>
-        </div>
-
-        {status.kind === "connected" && name.trim() && (
-          <div className="mt-4">
-            <ProfileCard name={name.trim()} />
-          </div>
         )}
+
+        {isConnected ? (
+          <div className="connect-form">
+            <button type="button" className="primary-btn" onClick={handleSyncNow} disabled={syncing}>
+              {syncing ? "Syncing…" : "Sync Now ↻"}
+            </button>
+            <button type="button" className="secondary-btn" onClick={handleDisconnect} disabled={disconnecting}>
+              {disconnecting ? "Disconnecting…" : "Disconnect"}
+            </button>
+          </div>
+        ) : (
+          <button type="button" className="primary-btn" onClick={handleConnect}>
+            {status.kind === "checking" ? "Checking…" : "Connect Fitbit →"}
+          </button>
+        )}
+
+        <div className="privacy">🔒 Secure. Private. You&apos;re in control.</div>
+        <p className="privacy">No wearable? Your phone works too.</p>
+      </section>
+
+      <section className="how-it-works page-container">
+        <h2>How it works</h2>
+        <p>Get started in 3 simple steps</p>
+        <div className="steps-grid">
+          {HOW_IT_WORKS.map((step) => (
+            <article className="step-card" key={step.title}>
+              <span className={`step-number ${step.badgeClass}`}>{step.number}</span>
+              <div className="step-icon">{step.icon}</div>
+              <h3>{step.title}</h3>
+              <p>{step.description}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="rewards-banner page-container">
+        <div className="reward-icon">🎁</div>
+        <div>
+          <h3>Exciting Goodies Await!</h3>
+          <p>Stay active, make an impact, and win exclusive Microsoft merchandise and special surprises!</p>
+        </div>
       </section>
     </>
   );
 }
 
-export default function SubmitPage() {
+export default function HomePage() {
   return (
     <Suspense fallback={null}>
-      <SubmitForm />
+      <Home />
     </Suspense>
   );
 }

@@ -8,3 +8,12 @@
 export function formatNumber(value: number): string {
   return value.toLocaleString("en-US");
 }
+
+/**
+ * Compact "48.2M" / "920K" style formatting for the leaderboard's Total
+ * Steps stat card, which the design spec shows abbreviated rather than
+ * fully expanded. Forces "en-US" for the same reason as `formatNumber`.
+ */
+export function formatCompactNumber(value: number): string {
+  return value.toLocaleString("en-US", { notation: "compact", maximumFractionDigits: 1 });
+}

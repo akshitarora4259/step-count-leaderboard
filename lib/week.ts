@@ -58,3 +58,30 @@ export function isWithinCurrentWeek(isoDate: string): boolean {
   const { startDate, endDate } = getWeekRange();
   return isoDate >= startDate && isoDate <= endDate;
 }
+
+const MONTH_LABELS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+function ordinal(day: number): string {
+  if (day % 10 === 1 && day !== 11) return `${day}st`;
+  if (day % 10 === 2 && day !== 12) return `${day}nd`;
+  if (day % 10 === 3 && day !== 13) return `${day}rd`;
+  return `${day}th`;
+}
+
+/**
+ * Formats a week range as the "13th - 19th Oct, 2026" style date pill text
+ * used across the Home/Leaderboard headers. Handles the rare case of a week
+ * spanning two months/years by naming both ends explicitly.
+ */
+export function formatWeekPill(range: WeekRange): string {
+  const { start, end } = range;
+  const startDay = ordinal(start.getDate());
+  const endDay = ordinal(end.getDate());
+  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+  if (sameMonth) {
+    return `${startDay} - ${endDay} ${MONTH_LABELS[end.getMonth()]}, ${end.getFullYear()}`;
+  }
+  return `${startDay} ${MONTH_LABELS[start.getMonth()]} - ${endDay} ${MONTH_LABELS[end.getMonth()]}, ${end.getFullYear()}`;
+}
