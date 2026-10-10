@@ -122,3 +122,36 @@ export function AwardIcon({ className = "w-5 h-5" }: IconProps) {
     </svg>
   );
 }
+
+export function CrownIcon({ className = "w-5 h-5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M3 8.5 7 11l5-6.5L17 11l4-2.5L19.5 18h-15L3 8.5z" />
+    </svg>
+  );
+}
+
+export function SparkleIcon({ className = "w-5 h-5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18" />
+    </svg>
+  );
+}
+
+export function QuoteIcon({ className = "w-5 h-5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M7 7c-2.2 0-4 1.8-4 4v6h6v-6H6.3C6.6 9.5 8 8.5 9.5 8.3L9 5c-.7.3-1.4.6-2 2zm10 0c-2.2 0-4 1.8-4 4v6h6v-6h-2.7c.3-1.5 1.7-2.5 3.2-2.7L19 5c-.7.3-1.4.6-2 2z" />
+    </svg>
+  );
+}
+
+export function PersonIcon({ className = "w-5 h-5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
+    </svg>
+  );
+}

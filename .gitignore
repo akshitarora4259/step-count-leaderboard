@@ -41,3 +41,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 design-reference.png
+design-reference-panel1.png
+design-reference-panel2.png
+design-reference-panel3.png

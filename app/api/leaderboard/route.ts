@@ -19,6 +19,8 @@ export type LeaderboardStats = {
   participants: number;
   totalSteps: number;
   averageSteps: number;
+  /** Average of (daysLogged / 7) across participants, as a whole percentage. */
+  completionPercent: number;
 };
 
 export async function GET() {
@@ -71,10 +73,14 @@ export async function GET() {
     .sort((a, b) => b.totalSteps - a.totalSteps);
 
   const totalSteps = leaderboard.reduce((sum, entry) => sum + entry.totalSteps, 0);
-  const stats = {
+  const completionSum = leaderboard.reduce((sum, entry) => sum + entry.daysLogged / 7, 0);
+  const stats: LeaderboardStats = {
     participants: leaderboard.length,
     totalSteps,
     averageSteps: leaderboard.length ? Math.round(totalSteps / leaderboard.length) : 0,
+    completionPercent: leaderboard.length
+      ? Math.round((completionSum / leaderboard.length) * 100)
+      : 0,
   };
 
   return NextResponse.json({ leaderboard, startDate, endDate, stats });

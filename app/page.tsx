@@ -4,9 +4,11 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getWeekRange } from "@/lib/week";
-import { FootstepsIcon, HeartIcon, LinkIcon, RefreshIcon, UnlinkIcon, CheckCircleIcon, AlertIcon, TrophyIcon } from "@/components/icons";
+import { LinkIcon, RefreshIcon, UnlinkIcon, CheckCircleIcon, AlertIcon } from "@/components/icons";
+import { GiveLogo } from "@/components/GiveLogo";
 import { WalkingIllustration } from "@/components/WalkingIllustration";
 import { ProfileCard } from "@/components/ProfileCard";
+import { setStoredName, clearStoredName } from "@/lib/clientName";
 
 type Status =
   | { kind: "unknown" }
@@ -20,17 +22,14 @@ const HOW_IT_WORKS = [
   {
     title: "Connect",
     description: "Enter your name and link your Fitbit account in one click — read-only access, nothing posted on your behalf.",
-    icon: LinkIcon,
   },
   {
     title: "Sync",
     description: "Your daily step count syncs automatically all week. No manual logging, no screenshots.",
-    icon: RefreshIcon,
   },
   {
     title: "Climb the leaderboard",
     description: "Watch your rank update live alongside everyone else giving it their all this week.",
-    icon: TrophyIcon,
   },
 ];
 
@@ -56,6 +55,7 @@ function SubmitForm() {
       const body = await res.json();
       if (body.connected) {
         setStatus({ kind: "connected", isMock: Boolean(body.isMock) });
+        setStoredName(trimmed);
       } else {
         setStatus({ kind: "not_connected" });
       }
@@ -76,6 +76,9 @@ function SubmitForm() {
     if (paramName) {
       setName(paramName);
       checkStatus(paramName);
+    }
+    if (connected === "1" && paramName) {
+      setStoredName(paramName);
     }
     if (connected === "1") {
       setBanner({
@@ -117,6 +120,7 @@ function SubmitForm() {
       const body = await res.json();
       if (res.ok) {
         setStatus({ kind: "not_connected" });
+        clearStoredName();
         setBanner({ kind: "success", message: "Disconnected — your synced step data has been removed." });
       } else {
         setBanner({ kind: "error", message: body.error ?? "Failed to disconnect." });
@@ -156,44 +160,58 @@ function SubmitForm() {
         <div className="absolute inset-0 brand-gradient opacity-[0.05]" aria-hidden="true" />
         <div className="relative max-w-5xl mx-auto px-4 pt-14 pb-10 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
           <div className="text-center md:text-left">
-            <div className="inline-flex items-center justify-center md:justify-start gap-2 text-msblue mb-4">
-              <FootstepsIcon className="w-8 h-8" />
-              <HeartIcon className="w-6 h-6 text-msred" />
-            </div>
+            <GiveLogo size="lg" className="justify-center md:justify-start mb-5" />
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-3">
               Every Step Is a Give
             </h1>
-            <p className="text-base text-gray-600 max-w-xl mx-auto md:mx-0 mb-5">
-              Walk for your health. Give for a better tomorrow. Connect your Fitbit once — your
-              steps sync automatically all week, no manual logging — and see how your movement
-              stacks up on the company leaderboard. {startDate} – {endDate}.
+            <p className="text-base text-gray-600 max-w-xl mx-auto md:mx-0 mb-3">
+              Walk for your health. Give for a better tomorrow.
             </p>
-            <a
-              href="#connect"
-              className="inline-flex items-center justify-center gap-2 rounded-lg brand-gradient text-white font-semibold px-6 py-3 text-sm shadow-sm hover:shadow-md hover:brightness-105 active:brightness-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-msblue transition-all"
-            >
-              <LinkIcon className="w-4 h-4" />
-              Connect Fitbit
-            </a>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 text-gray-600 text-xs font-medium px-3 py-1 mb-6">
+              {startDate} – {endDate}
+            </span>
+            <div>
+              <a
+                href="#connect"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-msblue text-white font-semibold px-7 py-3 text-sm shadow-sm hover:shadow-md hover:bg-[#0092d6] active:bg-[#007fb8] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-msblue transition-all"
+              >
+                <LinkIcon className="w-4 h-4" />
+                Connect Fitbit
+              </a>
+              <p className="text-xs text-gray-400 mt-2.5">
+                No wearable? Your phone works too.
+              </p>
+            </div>
           </div>
           <WalkingIllustration className="w-full h-auto max-w-sm mx-auto md:max-w-none" />
         </div>
       </section>
 
       {/* How it works */}
-      <section className="max-w-3xl mx-auto px-4 pb-10">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {HOW_IT_WORKS.map((step, i) => (
-            <div key={step.title} className="card p-5 text-center">
-              <div className="w-10 h-10 rounded-full brand-gradient text-white flex items-center justify-center mx-auto mb-3">
-                <step.icon className="w-5 h-5" />
+      <section className="bg-gray-50/60 py-10">
+        <div className="max-w-3xl mx-auto px-4">
+          <h2 className="text-center text-sm font-semibold text-gray-500 uppercase tracking-wide mb-6">
+            How it works
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {HOW_IT_WORKS.map((step, i) => (
+              <div key={step.title} className="card p-5 text-center">
+                <div className="w-10 h-10 rounded-full brand-gradient text-white flex items-center justify-center mx-auto mb-3 text-base font-bold">
+                  {i + 1}
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-1">{step.title}</h3>
+                <p className="text-sm text-gray-500">{step.description}</p>
               </div>
-              <p className="text-xs font-semibold text-msblue mb-1">STEP {i + 1}</p>
-              <h3 className="font-semibold text-gray-900 mb-1">{step.title}</h3>
-              <p className="text-sm text-gray-500">{step.description}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
+      </section>
+
+      {/* Closing tagline */}
+      <section className="py-8 text-center">
+        <p className="text-sm sm:text-base font-medium text-gray-600 italic max-w-md mx-auto px-4">
+          Together, we turn small steps into real change.
+        </p>
       </section>
 
       {/* Connect card */}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import "./globals.css";
 import { GiveMark } from "@/components/GiveMark";
 import { GiveLogo } from "@/components/GiveLogo";
+import { HeaderNav } from "@/components/HeaderNav";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,20 +35,7 @@ export default function RootLayout({
             <Link href="/">
               <GiveLogo />
             </Link>
-            <div className="flex gap-1 text-sm font-medium">
-              <Link
-                href="/"
-                className="px-3 py-1.5 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-              >
-                Connect
-              </Link>
-              <Link
-                href="/leaderboard"
-                className="px-3 py-1.5 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-              >
-                Leaderboard
-              </Link>
-            </div>
+            <HeaderNav />
           </nav>
         </header>
         <main className="flex-1">{children}</main>
@@ -64,10 +52,11 @@ export default function RootLayout({
             </p>
             <p>
               You can disconnect at any time from the{" "}
-              <Link href="/" className="underline hover:text-gray-700">
+              <Link href="/#connect" className="underline hover:text-gray-700">
                 Connect
               </Link>{" "}
-              page — it revokes Fitbit&apos;s access and removes your synced step data immediately.
+              section — it revokes Fitbit&apos;s access and removes your synced step data
+              immediately.
             </p>
           </div>
         </footer>
