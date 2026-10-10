@@ -91,10 +91,9 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ---- Home hero scene ----
-   Illustration art (office campus, trees, walkers, giving vignette) is
-   provided by real image assets (public/images/give/*) rather than CSS
-   shapes — see .hero-walkers / .hero-giving below and the background-image
-   set on .home-scene itself. All copy/buttons stay real HTML above the art. */
+   A single scenery-only background image (public/images/give/home-background.webp)
+   sits behind a gradient shade for text legibility; all copy/buttons are real
+   HTML rendered in .hero-copy above the shade. No overlay illustration images. */
 .home-scene {
   position: relative;
   min-height: 665px;
@@ -103,6 +102,20 @@ a { color: inherit; text-decoration: none; }
   padding: 45px 20% 260px;
   background: url("/images/give/home-background.webp") center bottom / cover no-repeat;
 }
+.hero-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    90deg,
+    rgba(242, 250, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0.86) 37%,
+    rgba(255, 255, 255, 0.35) 60%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  pointer-events: none;
+}
+.hero-copy { position: relative; z-index: 2; }
 .give-lockup { position: relative; z-index: 3; display: inline-block; }
 .give-word { font-size: 70px; font-weight: 900; line-height: .82; letter-spacing: -7px; }
 .give-word b:nth-child(1) { color: var(--red); }
@@ -141,25 +154,6 @@ a { color: inherit; text-decoration: none; }
 .fitbit-dots { font-size: 23px; margin-right: 8px; }
 .privacy { position: relative; z-index: 3; font-size: 11px; color: #69768b; }
 .home-scribble { position: absolute; right: 8%; top: 185px; font-size: 18px; transform: rotate(-4deg); z-index: 3; }
-/* Real image overlays replacing the former CSS-drawn office/tree/walker art. */
-.hero-walkers {
-  position: absolute;
-  z-index: 2;
-  bottom: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(720px, 68vw);
-  pointer-events: none;
-}
-.hero-giving {
-  position: absolute;
-  z-index: 2;
-  right: 3%;
-  bottom: 7%;
-  width: min(220px, 20vw);
-  pointer-events: none;
-}
-.hero-walkers img, .hero-giving img { width: 100%; height: auto; display: block; }
 /* Generic decorative person art still used on the /me impact banner. */
 .person-art { position: absolute; width: 30px; height: 58px; border-radius: 17px 17px 8px 8px; background: #217ec8; right: 42px; bottom: 7px; }
 .person-art:before { content: ""; position: absolute; width: 21px; height: 21px; border-radius: 50%; background: #f0bb90; left: 4px; top: -14px; }
@@ -290,9 +284,22 @@ a { color: inherit; text-decoration: none; }
 }
 .gold .medal { background: #f1a900; color: #fff; }
 .bronze .medal { background: #a95527; color: #fff; }
-/* Podium characters are real illustration assets (public/images/give/runner-*.png). */
-.podium-avatar { position: relative; margin: 10px auto 7px; width: 96px; height: 118px; }
-.podium-avatar img { object-fit: contain; }
+/* Podium characters are simple CSS-drawn generic-person silhouettes. */
+.generic-person { width: 78px; height: 88px; margin: 6px auto 11px; position: relative; }
+.generic-person:before {
+  content: "";
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #c68f6b;
+  left: 22px;
+  top: 0;
+  border-top: 10px solid #2e2927;
+}
+.generic-person:after { content: ""; position: absolute; width: 70px; height: 51px; border-radius: 35px 35px 12px 12px; background: #1487d0; left: 4px; bottom: 0; }
+.podium-card.silver .generic-person:after { background: #3065ae; }
+.podium-card.bronze .generic-person:after { background: #168a64; }
 .crown { position: absolute; top: 0; left: 50%; transform: translate(-50%, -60%); font-size: 35px; color: #f3aa00; z-index: 2; }
 /* Generic CSS-drawn avatar still used for the /me profile illustration (no
    dedicated profile-photo asset was supplied). */
@@ -354,10 +361,6 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
 .success { width: 44px; height: 44px; border-radius: 50%; background: #149b3d; color: white; display: grid; place-items: center; font-size: 28px; font-weight: 800; }
 .disconnect-button { margin-left: auto; border: 1px solid #d74c4c; border-radius: 10px; padding: 11px 18px; background: #fff7f4; color: #b51f28; cursor: pointer; }
 .disconnect-button:disabled { opacity: .7; cursor: default; }
-
-/* Supporting wellness illustration (public/images/give/connected-walker.png). */
-.connected-illustration { position: relative; width: 150px; height: 100px; flex: none; }
-.connected-illustration img { object-fit: contain; }
 
 .profile-summary, .weekly-card, .impact-banner, .rewards-section {
   margin: 0 35px 20px;
@@ -447,10 +450,10 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
   .microsoft-brand span:last-child { display: none; }
   .topbar nav { gap: 12px; }
   .home-scene { padding: 42px 12px 250px; }
-  .eyebrow, .home-scribble, .hero-giving { display: none; }
+  .hero-shade { background: rgba(255, 255, 255, 0.81); }
+  .eyebrow, .home-scribble { display: none; }
   .give-word { font-size: 58px; }
   .home-scene h1 { font-size: 35px; }
-  .hero-walkers { width: 86vw; }
   .step-grid, .summary-grid, .metric-grid { grid-template-columns: 1fr; }
   .summary-grid article { border-right: 0; border-bottom: 1px solid var(--line); }
   .page-heading { padding: 20px; gap: 12px; }
@@ -462,7 +465,6 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
     margin-left: 14px;
     margin-right: 14px;
   }
-  .connected-illustration { display: none; }
   .summary-grid { margin-left: 14px; margin-right: 14px; }
   .ranking-head, .ranking-row { grid-template-columns: 30px 1fr 86px; }
   .ranking-head span:last-child, .ranking-row .step-bar { display: none; }
@@ -481,7 +483,6 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
   .topbar nav { order: 3; width: 100%; height: 46px; justify-content: space-between; }
   .nav-link { font-size: 12px; }
   .home-scene { min-height: 690px; }
-  .hero-walkers { width: 94vw; }
   .step-grid { grid-template-columns: 1fr; }
   .page-heading .scribble { display: none; }
   .compact .give-word { font-size: 40px; }
@@ -492,7 +493,7 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
   .silver { height: 185px; }
   .bronze { height: 165px; }
   .podium-card strong { font-size: 18px; }
-  .podium-avatar { width: 78px; height: 96px; }
+  .generic-person { width: 62px; height: 72px; }
   .metric-grid { grid-template-columns: 1fr; }
   .bars b { display: none; }
   .bars span { font-size: 9px; }

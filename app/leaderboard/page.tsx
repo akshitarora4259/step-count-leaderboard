@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import type { LeaderboardEntry, LeaderboardStats } from "@/app/api/leaderboard/route";
 import { formatCompactNumber, formatNumber } from "@/lib/format";
@@ -154,26 +153,20 @@ export default function LeaderboardPage() {
       {top3.length === 3 && (
         <section className="podium" aria-label="Top three participants">
           <article className="podium-card silver">
-            <div className="podium-avatar">
-              <Image src="/images/give/runner-silver.png" alt="" fill sizes="96px" />
-            </div>
+            <div className="generic-person" aria-hidden="true" />
             <span className="medal">2</span>
             <strong>{formatNumber(silver.totalSteps)}</strong>
             <small>steps</small>
           </article>
           <article className="podium-card gold">
             <div className="crown">♛</div>
-            <div className="podium-avatar">
-              <Image src="/images/give/runner-gold.png" alt="" fill sizes="96px" priority />
-            </div>
+            <div className="generic-person" aria-hidden="true" />
             <span className="medal">1</span>
             <strong>{formatNumber(gold.totalSteps)}</strong>
             <small>steps</small>
           </article>
           <article className="podium-card bronze">
-            <div className="podium-avatar">
-              <Image src="/images/give/runner-bronze.png" alt="" fill sizes="96px" />
-            </div>
+            <div className="generic-person" aria-hidden="true" />
             <span className="medal">3</span>
             <strong>{formatNumber(bronze.totalSteps)}</strong>
             <small>steps</small>

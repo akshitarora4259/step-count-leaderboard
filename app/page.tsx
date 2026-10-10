@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { getWeekRange, formatWeekPill } from "@/lib/week";
 import { setStoredName, clearStoredName, getStoredName } from "@/lib/clientName";
@@ -165,105 +164,88 @@ function Home() {
   return (
     <section id="home" className="view active-view" aria-labelledby="home-title">
       <div className="home-scene">
-        <div className="give-lockup" aria-label="Give Step Challenge">
-          <div className="give-word">
-            <b>G</b>
-            <b>I</b>
-            <b>V</b>
-            <b>E</b>
+        <div className="hero-shade" aria-hidden="true" />
+        <div className="hero-copy">
+          <div className="give-lockup" aria-label="Give Step Challenge">
+            <div className="give-word">
+              <b>G</b>
+              <b>I</b>
+              <b>V</b>
+              <b>E</b>
+            </div>
+            <div className="script-title">Step Challenge</div>
           </div>
-          <div className="script-title">Step Challenge</div>
-        </div>
-        <p className="eyebrow">PEOPLE • PURPOSE • A BRIGHTER TOMORROW</p>
-        <h1 id="home-title">
-          Every Step Is a <span>Give</span>
-        </h1>
-        <p className="lead">Walk for your health. Give for a better tomorrow.</p>
-        <p className="campaign-date">
-          <span aria-hidden="true">📅</span> {datePill}
-        </p>
-        <p className="intro">
-          Connect your Fitbit, move together with your Microsoft community, and help create a
-          healthier, kinder world. Every step you take contributes to real impact.
-        </p>
+          <p className="eyebrow">PEOPLE • PURPOSE • A BRIGHTER TOMORROW</p>
+          <h1 id="home-title">
+            Every Step Is a <span>Give</span>
+          </h1>
+          <p className="lead">Walk for your health. Give for a better tomorrow.</p>
+          <p className="campaign-date">
+            <span aria-hidden="true">📅</span> {datePill}
+          </p>
+          <p className="intro">
+            Connect your Fitbit, move together with your Microsoft community, and help create a
+            healthier, kinder world. Every step you take contributes to real impact.
+          </p>
 
-        {!isConnected && (
-          <div className="connect-form">
-            <input
-              type="text"
-              required
-              maxLength={100}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={(e) => checkStatus(e.target.value)}
-              placeholder="Your name"
-              aria-label="Your name"
-            />
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email (optional)"
-              aria-label="Email (optional)"
-            />
-          </div>
-        )}
+          {!isConnected && (
+            <div className="connect-form">
+              <input
+                type="text"
+                required
+                maxLength={100}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={(e) => checkStatus(e.target.value)}
+                placeholder="Your name"
+                aria-label="Your name"
+              />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email (optional)"
+                aria-label="Email (optional)"
+              />
+            </div>
+          )}
 
-        {isConnected ? (
-          <div className="connect-form">
-            <button type="button" className="connect-button" onClick={handleSyncNow} disabled={syncing}>
+          {isConnected ? (
+            <div className="connect-form">
+              <button type="button" className="connect-button" onClick={handleSyncNow} disabled={syncing}>
+                <span className="fitbit-dots" aria-hidden="true">
+                  ⠿
+                </span>{" "}
+                {syncing ? "Syncing…" : "Sync Now"} <span>↻</span>
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={handleDisconnect}
+                disabled={disconnecting}
+              >
+                {disconnecting ? "Disconnecting…" : "Disconnect"}
+              </button>
+            </div>
+          ) : (
+            <button id="connectButton" type="button" className="connect-button" onClick={handleConnect}>
               <span className="fitbit-dots" aria-hidden="true">
                 ⠿
               </span>{" "}
-              {syncing ? "Syncing…" : "Sync Now"} <span>↻</span>
+              {status.kind === "checking" ? "Checking…" : "Connect Fitbit"} <span>›</span>
             </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={handleDisconnect}
-              disabled={disconnecting}
-            >
-              {disconnecting ? "Disconnecting…" : "Disconnect"}
-            </button>
-          </div>
-        ) : (
-          <button id="connectButton" type="button" className="connect-button" onClick={handleConnect}>
-            <span className="fitbit-dots" aria-hidden="true">
-              ⠿
-            </span>{" "}
-            {status.kind === "checking" ? "Checking…" : "Connect Fitbit"} <span>›</span>
-          </button>
-        )}
+          )}
 
-        <p className="privacy">🔒 Secure. Private. You&apos;re in control.</p>
-        <p className="scribble home-scribble">
-          Healthier
-          <br />
-          People
-          <br />
-          Stronger
-          <br />
-          Communities ♡
-        </p>
-
-        <div className="hero-giving" aria-label="Community impact illustration">
-          <Image
-            src="/images/give/home-giving.png"
-            alt=""
-            width={1536}
-            height={1024}
-            priority
-          />
-        </div>
-
-        <div className="hero-walkers" aria-label="Illustration of colleagues walking together">
-          <Image
-            src="/images/give/home-walkers.png"
-            alt="Colleagues walking together"
-            width={1536}
-            height={1024}
-            priority
-          />
+          <p className="privacy">🔒 Secure. Private. You&apos;re in control.</p>
+          <p className="scribble home-scribble">
+            Healthier
+            <br />
+            People
+            <br />
+            Stronger
+            <br />
+            Communities ♡
+          </p>
         </div>
       </div>
 
