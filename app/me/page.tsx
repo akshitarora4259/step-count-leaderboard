@@ -7,6 +7,7 @@ import { formatCompactNumber, formatNumber } from "@/lib/format";
 import { todayISODate } from "@/lib/week";
 import { notify } from "@/lib/toastBus";
 import type { ProfileResponse } from "@/app/api/profile/route";
+import { Icon } from "@/components/Icon";
 
 type State =
   | { kind: "loading" }
@@ -129,7 +130,9 @@ export default function MePage() {
       </div>
 
       <div className="connected-banner">
-        <div className="success">✓</div>
+        <div className="success">
+          <Icon name="check" className="white-filter" />
+        </div>
         <div>
           <h1 id="connected-title">Your Fitbit is connected{isMock ? " (demo)" : ""}!</h1>
           <p>Your steps are syncing automatically.</p>
@@ -140,15 +143,13 @@ export default function MePage() {
           onClick={() => handleDisconnect(name)}
           disabled={disconnecting}
         >
-          ⌁ {disconnecting ? "Disconnecting…" : "Disconnect"}
+          {disconnecting ? "Disconnecting…" : "Disconnect"}
         </button>
       </div>
 
       <section className="profile-summary">
         <div className="profile-avatar">
-          <div className="runner-avatar avatar-profile">
-            <span />
-          </div>
+          <img src="/images/give/avatar-05.webp" alt="" />
         </div>
         <div className="profile-copy">
           <h2>Good going, {name}!</h2>
@@ -156,17 +157,23 @@ export default function MePage() {
         </div>
         <div className="metric-grid">
           <article>
-            <span>👣</span>
+            <span>
+              <Icon name="footsteps" className="blue-filter" />
+            </span>
             <strong>{formatNumber(todaysSteps)}</strong>
             <small>Steps Today</small>
           </article>
           <article>
-            <span>▥</span>
+            <span>
+              <Icon name="chart" className="blue-filter" />
+            </span>
             <strong>{formatNumber(profile.totalSteps)}</strong>
             <small>This Week</small>
           </article>
           <article>
-            <span>📅</span>
+            <span>
+              <Icon name="calendar" className="navy-filter" />
+            </span>
             <strong>{profile.daysLogged}/7</strong>
             <small>Days Completed</small>
           </article>
@@ -176,7 +183,16 @@ export default function MePage() {
       <section className="weekly-card">
         <div className="card-heading">
           <h2>Your Steps This Week</h2>
-          <span>{profile.rank ? `Rank #${profile.rank} of ${profile.participants}` : ""}</span>
+          <span>
+            {profile.rank ? (
+              <>
+                <Icon name="rank" className="blue-filter" />
+                {`Rank #${profile.rank} of ${profile.participants}`}
+              </>
+            ) : (
+              ""
+            )}
+          </span>
         </div>
         <div className="chart" aria-label="Weekly steps bar chart">
           <div className="y-labels">
@@ -204,7 +220,9 @@ export default function MePage() {
       </section>
 
       <section className="impact-banner">
-        <span className="impact-heart">♥</span>
+        <span className="impact-heart">
+          <Icon name="heart" className="red-filter" />
+        </span>
         <div>
           <h2>Your Steps Create Real Impact</h2>
           <p>
@@ -212,16 +230,14 @@ export default function MePage() {
             brighter futures for communities in need.
           </p>
         </div>
-        <div className="help-art">
-          <span>♡</span>
-          <div className="person-art" />
-          <div className="person-art second-person" />
-        </div>
+        <img className="impact-art" src="/images/give/connected-impact-vignette.webp" alt="" />
       </section>
 
       <section className="rewards-section">
         <div className="reward-copy">
-          <span className="gift">🎁</span>
+          <span className="gift">
+            <Icon name="gift" className="yellow-filter" />
+          </span>
           <div>
             <h2>Exciting Goodies Await!</h2>
             <p>
@@ -232,7 +248,9 @@ export default function MePage() {
         </div>
         <div className="reward-icons">
           <div>
-            <span>🛍</span>
+            <span>
+              <Icon name="bag" className="blue-filter" />
+            </span>
             <small>
               Microsoft
               <br />
@@ -240,7 +258,9 @@ export default function MePage() {
             </small>
           </div>
           <div>
-            <span>🎁</span>
+            <span>
+              <Icon name="sparkles" className="yellow-filter" />
+            </span>
             <small>
               Special
               <br />

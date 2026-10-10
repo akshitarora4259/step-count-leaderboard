@@ -6,6 +6,7 @@ import type { LeaderboardEntry, LeaderboardStats } from "@/app/api/leaderboard/r
 import { formatCompactNumber, formatNumber } from "@/lib/format";
 import { formatWeekPill, getWeekRange } from "@/lib/week";
 import { COMMUNITY_IMPACT_GOAL_USD } from "@/lib/constants";
+import { Icon } from "@/components/Icon";
 
 const POLL_INTERVAL_MS = 30_000;
 const VISIBLE_ROWS = 10;
@@ -99,7 +100,7 @@ export default function LeaderboardPage() {
         </div>
         <div className="date-stack">
           <p className="campaign-date">
-            <span>📅</span> {datePill}
+            <Icon name="calendar" className="navy-filter" /> {datePill}
           </p>
           <small>Together for a healthier, kinder tomorrow.</small>
         </div>
@@ -114,21 +115,21 @@ export default function LeaderboardPage() {
 
       <div className="summary-grid">
         <article>
-          <span className="summary-icon blue-text">👥</span>
+          <Icon name="users" className="summary-icon blue-filter" />
           <div>
             <strong>{formatNumber(stats?.participants ?? 0)}</strong>
             <small>Participants</small>
           </div>
         </article>
         <article>
-          <span className="summary-icon blue-text">👣</span>
+          <Icon name="footsteps" className="summary-icon blue-filter" />
           <div>
             <strong>{formatCompactNumber(stats?.totalSteps ?? 0)}</strong>
             <small>Total Steps</small>
           </div>
         </article>
         <article>
-          <span className="summary-icon red-text">♥</span>
+          <Icon name="heart" className="summary-icon red-filter" />
           <div>
             {/* Placeholder fundraising goal — see lib/constants.ts. */}
             <strong>${formatNumber(COMMUNITY_IMPACT_GOAL_USD)}</strong>
@@ -147,26 +148,34 @@ export default function LeaderboardPage() {
           <h1 id="leaderboard-title">Overall Leaderboard</h1>
           <p>Total steps from {datePill}</p>
         </div>
-        <span className="period-pill">📅 This Week⌄</span>
+        <span className="period-pill">
+          <Icon name="calendar" className="navy-filter" /> This Week⌄
+        </span>
       </div>
 
       {top3.length === 3 && (
         <section className="podium" aria-label="Top three participants">
           <article className="podium-card silver">
-            <div className="generic-person" aria-hidden="true" />
+            <div className="podium-avatar">
+              <img src="/images/give/avatar-02.webp" alt="" />
+            </div>
             <span className="medal">2</span>
             <strong>{formatNumber(silver.totalSteps)}</strong>
             <small>steps</small>
           </article>
           <article className="podium-card gold">
-            <div className="crown">♛</div>
-            <div className="generic-person" aria-hidden="true" />
+            <Icon name="crown" className="crown yellow-filter" />
+            <div className="podium-avatar">
+              <img src="/images/give/avatar-01.webp" alt="" />
+            </div>
             <span className="medal">1</span>
             <strong>{formatNumber(gold.totalSteps)}</strong>
             <small>steps</small>
           </article>
           <article className="podium-card bronze">
-            <div className="generic-person" aria-hidden="true" />
+            <div className="podium-avatar">
+              <img src="/images/give/avatar-03.webp" alt="" />
+            </div>
             <span className="medal">3</span>
             <strong>{formatNumber(bronze.totalSteps)}</strong>
             <small>steps</small>

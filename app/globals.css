@@ -40,6 +40,21 @@ body {
 button { font: inherit; }
 a { color: inherit; text-decoration: none; }
 
+/* ---- Icon utility ----
+   Icons are monochrome SVGs (public/images/give/icons/, "currentColor"
+   strokes/fills) rendered via <img>, which can't inherit page text color —
+   so each context applies a CSS filter to recolor the icon. Filter values
+   for blue/green/yellow/navy/white are carried over from the reference
+   stylesheet; red/muted are close equivalents for contexts it didn't cover. */
+.icon { width: 1em; height: 1em; display: inline-block; vertical-align: -0.15em; }
+.blue-filter { filter: invert(42%) sepia(99%) saturate(1500%) hue-rotate(178deg); }
+.green-filter { filter: invert(49%) sepia(70%) saturate(650%) hue-rotate(91deg); }
+.yellow-filter { filter: invert(70%) sepia(90%) saturate(1000%) hue-rotate(2deg); }
+.navy-filter { filter: invert(14%) sepia(54%) saturate(1890%) hue-rotate(205deg); }
+.red-filter { filter: invert(26%) sepia(54%) saturate(3000%) hue-rotate(340deg) brightness(95%) contrast(95%); }
+.muted-filter { filter: grayscale(1) brightness(1.7) opacity(.75); }
+.white-filter { filter: brightness(0) invert(1); }
+
 /* ---- Top nav ---- */
 .topbar {
   height: 66px;
@@ -91,16 +106,17 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ---- Home hero scene ----
-   A single scenery-only background image (public/images/give/home-background.webp)
+   A single scenery-only background image (public/images/give/home-campus-background.webp)
    sits behind a gradient shade for text legibility; all copy/buttons are real
-   HTML rendered in .hero-copy above the shade. No overlay illustration images. */
+   HTML rendered in .hero-copy above the shade, with the walking-group and
+   giving-vignette illustrations layered on top as decorative overlays. */
 .home-scene {
   position: relative;
   min-height: 665px;
   overflow: hidden;
   text-align: center;
   padding: 45px 20% 260px;
-  background: url("/images/give/home-background.webp") center bottom / cover no-repeat;
+  background: url("/images/give/home-campus-background.webp") center bottom / cover no-repeat;
 }
 .hero-shade {
   position: absolute;
@@ -115,7 +131,7 @@ a { color: inherit; text-decoration: none; }
   );
   pointer-events: none;
 }
-.hero-copy { position: relative; z-index: 2; }
+.hero-copy { position: relative; z-index: 3; }
 .give-lockup { position: relative; z-index: 3; display: inline-block; }
 .give-word { font-size: 70px; font-weight: 900; line-height: .82; letter-spacing: -7px; }
 .give-word b:nth-child(1) { color: var(--red); }
@@ -134,7 +150,7 @@ a { color: inherit; text-decoration: none; }
 .home-scene h1 span { color: #087bca; }
 .lead { font-size: 19px; font-weight: 700; margin: 0 0 18px; }
 .campaign-date { font-weight: 800; color: var(--navy); font-size: 17px; margin: 14px 0; }
-.campaign-date span { color: #078bd6; margin-right: 5px; }
+.campaign-date .icon { width: 17px; height: 17px; margin-right: 5px; }
 .intro { position: relative; z-index: 3; max-width: 540px; margin: 20px auto; line-height: 1.55; }
 .connect-button {
   border: 0;
@@ -151,13 +167,33 @@ a { color: inherit; text-decoration: none; }
 }
 .connect-button:hover { transform: translateY(-1px); }
 .connect-button:disabled { opacity: .7; cursor: default; transform: none; }
-.fitbit-dots { font-size: 23px; margin-right: 8px; }
+.fitbit-dots { width: 20px; height: 20px; margin-right: 8px; }
 .privacy { position: relative; z-index: 3; font-size: 11px; color: #69768b; }
+.privacy .icon { width: 12px; height: 12px; margin-right: 4px; }
 .home-scribble { position: absolute; right: 8%; top: 185px; font-size: 18px; transform: rotate(-4deg); z-index: 3; }
-/* Generic decorative person art still used on the /me impact banner. */
-.person-art { position: absolute; width: 30px; height: 58px; border-radius: 17px 17px 8px 8px; background: #217ec8; right: 42px; bottom: 7px; }
-.person-art:before { content: ""; position: absolute; width: 21px; height: 21px; border-radius: 50%; background: #f0bb90; left: 4px; top: -14px; }
-.second-person { right: 76px; background: #ec7641; transform: scale(.9); }
+/* Decorative overlay illustrations layered on the hero scenery. */
+.walkers {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: 9px;
+  transform: translateX(-50%);
+  width: min(650px, 56%);
+  max-height: 285px;
+  object-fit: contain;
+  pointer-events: none;
+}
+.giving {
+  position: absolute;
+  z-index: 2;
+  right: 3.5%;
+  top: 310px;
+  width: 172px;
+  height: 172px;
+  border-radius: 34px 34px 14px 14px;
+  object-fit: cover;
+  box-shadow: var(--shadow);
+}
 
 /* ---- How it works / goodies strip ---- */
 .how-section { position: relative; margin-top: -3px; padding: 20px 30px 28px; background: #fff; }
@@ -188,9 +224,7 @@ a { color: inherit; text-decoration: none; }
 .step-no.blue { background: #087ddd; }
 .step-no.green { background: #129849; }
 .step-no.yellow { background: #ffaa0a; }
-.step-icon { display: block; color: #087ddd; font-size: 34px; font-weight: 800; }
-.step-icon.green-text { color: #159946; }
-.step-icon.yellow-text { color: #f6a300; }
+.step-icon { display: block; margin: 0 auto; width: 32px; height: 32px; }
 .step-card h3 { margin: 3px 0 10px; color: var(--navy); }
 .step-card p { margin: 0; font-size: 13px; line-height: 1.5; }
 .goodies-strip {
@@ -203,7 +237,7 @@ a { color: inherit; text-decoration: none; }
   text-align: left;
   gap: 14px;
 }
-.gift { font-size: 35px; }
+.gift { display: inline-flex; width: 35px; height: 35px; }
 .goodies-strip p { margin: 3px 0; font-size: 12px; }
 .goodies-strip .mini { margin-left: auto; font-size: 16px; }
 
@@ -227,9 +261,7 @@ a { color: inherit; text-decoration: none; }
 }
 .summary-grid article { height: 85px; padding: 14px; display: flex; align-items: center; justify-content: center; gap: 12px; border-right: 1px solid var(--line); }
 .summary-grid article:last-child { border: 0; }
-.summary-icon { font-size: 29px; }
-.summary-icon.red-text { color: #e03639; }
-.summary-icon.blue-text { color: #087ddd; }
+.summary-icon { width: 29px; height: 29px; }
 .summary-grid strong, .summary-grid small { display: block; }
 .summary-grid strong { color: #111a2f; font-size: 22px; }
 .summary-grid small { font-size: 11px; }
@@ -249,7 +281,8 @@ a { color: inherit; text-decoration: none; }
 .leaderboard-header { display: flex; justify-content: space-between; margin: 0 35px 10px; align-items: end; }
 .leaderboard-header h1 { margin: 0; color: var(--navy); font-size: 28px; }
 .leaderboard-header p { margin: 3px 0; }
-.period-pill { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 11px 15px; font-size: 12px; }
+.period-pill { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 11px 15px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; }
+.period-pill .icon { width: 13px; height: 13px; }
 
 /* ---- Podium ---- */
 .podium {
@@ -284,38 +317,12 @@ a { color: inherit; text-decoration: none; }
 }
 .gold .medal { background: #f1a900; color: #fff; }
 .bronze .medal { background: #a95527; color: #fff; }
-/* Podium characters are simple CSS-drawn generic-person silhouettes. */
-.generic-person { width: 78px; height: 88px; margin: 6px auto 11px; position: relative; }
-.generic-person:before {
-  content: "";
-  position: absolute;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: #c68f6b;
-  left: 22px;
-  top: 0;
-  border-top: 10px solid #2e2927;
-}
-.generic-person:after { content: ""; position: absolute; width: 70px; height: 51px; border-radius: 35px 35px 12px 12px; background: #1487d0; left: 4px; bottom: 0; }
-.podium-card.silver .generic-person:after { background: #3065ae; }
-.podium-card.bronze .generic-person:after { background: #168a64; }
-.crown { position: absolute; top: 0; left: 50%; transform: translate(-50%, -60%); font-size: 35px; color: #f3aa00; z-index: 2; }
-/* Generic CSS-drawn avatar still used for the /me profile illustration (no
-   dedicated profile-photo asset was supplied). */
-.runner-avatar { position: relative; margin: 14px auto 7px; width: 72px; height: 72px; border-radius: 50%; background: #e4f3ff; overflow: hidden; }
-.runner-avatar:before {
-  content: "";
-  position: absolute;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: #d69b73;
-  top: 10px;
-  left: 21px;
-  border-top: 9px solid #322a28;
-}
-.runner-avatar:after { content: ""; position: absolute; width: 50px; height: 40px; border-radius: 26px 26px 0 0; background: #1687d2; left: 11px; top: 42px; }
+/* Podium characters use real circular avatar images (public/images/give/avatar-0{1,2,3}.webp). */
+.podium-avatar { width: 78px; height: 88px; margin: 6px auto 11px; position: relative; display: block; }
+.podium-avatar img { width: 78px; height: 78px; border-radius: 50%; object-fit: cover; border: 3px solid #fff; box-shadow: var(--shadow); display: block; }
+.crown { position: absolute; top: -6px; left: 50%; width: 34px; height: 34px; transform: translate(-50%, -60%); z-index: 2; }
+/* Real avatar image used for the /me profile illustration placeholder. */
+.profile-avatar img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #fff; box-shadow: var(--shadow); }
 
 /* ---- Ranking list ---- */
 .ranking-card { margin: 0 35px; border: 1px solid var(--line); border-radius: 0 0 16px 16px; background: #fff; padding: 9px 16px 15px; }
@@ -358,7 +365,8 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
 }
 .connected-banner h1 { font-size: 21px; margin: 0; color: #175b27; }
 .connected-banner p { margin: 4px 0; }
-.success { width: 44px; height: 44px; border-radius: 50%; background: #149b3d; color: white; display: grid; place-items: center; font-size: 28px; font-weight: 800; }
+.success { width: 44px; height: 44px; border-radius: 50%; background: #149b3d; display: grid; place-items: center; }
+.success .icon { width: 22px; height: 22px; }
 .disconnect-button { margin-left: auto; border: 1px solid #d74c4c; border-radius: 10px; padding: 11px 18px; background: #fff7f4; color: #b51f28; cursor: pointer; }
 .disconnect-button:disabled { opacity: .7; cursor: default; }
 
@@ -370,19 +378,20 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
   box-shadow: var(--shadow);
 }
 .profile-summary { padding: 24px; display: grid; grid-template-columns: 90px 1fr; gap: 18px; }
-.profile-avatar .runner-avatar { width: 80px; height: 80px; }
 .profile-copy h2 { margin: 5px 0; color: var(--navy); }
 .profile-copy p { max-width: 470px; line-height: 1.45; }
 .metric-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .metric-grid article { text-align: center; border: 1px solid var(--line); border-radius: 12px; padding: 13px; }
-.metric-grid article > span { font-size: 23px; }
+.metric-grid article > span { display: inline-block; }
+.metric-grid article > span .icon { width: 23px; height: 23px; }
 .metric-grid strong, .metric-grid small { display: block; }
 .metric-grid strong { font-size: 28px; color: var(--navy); margin: 4px; }
 
 .weekly-card { padding: 18px 22px; }
 .card-heading { display: flex; justify-content: space-between; }
 .card-heading h2 { font-size: 17px; color: var(--navy); }
-.card-heading span { font-size: 12px; color: #087dcc; font-weight: 700; }
+.card-heading span { font-size: 12px; color: #087dcc; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
+.card-heading span .icon { width: 13px; height: 13px; }
 .chart { height: 235px; display: grid; grid-template-columns: 35px 1fr; padding-top: 10px; }
 .y-labels { display: flex; flex-direction: column; justify-content: space-between; font-size: 10px; color: #678; }
 .bars {
@@ -403,13 +412,10 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
 .bars small { display: block; }
 
 .impact-banner { display: flex; align-items: center; padding: 18px 23px; background: linear-gradient(90deg, #eef9ff, #fff, #fff4d9); }
-.impact-heart { font-size: 36px; color: #097fd3; margin-right: 18px; }
+.impact-heart { display: inline-flex; width: 36px; height: 36px; margin-right: 18px; }
 .impact-banner h2 { font-size: 17px; color: var(--navy); margin: 0; }
 .impact-banner p { font-size: 12px; }
-.help-art { margin-left: auto; position: relative; width: 130px; height: 65px; }
-.help-art > span { position: absolute; right: 5px; color: #e65a3c; font-size: 28px; }
-.help-art .person-art { right: 20px; }
-.help-art .second-person { right: 53px; }
+.impact-art { margin-left: auto; width: 190px; height: 84px; object-fit: cover; border-radius: 12px; box-shadow: var(--shadow); }
 
 .rewards-section { position: relative; padding: 20px; display: flex; align-items: center; }
 .reward-copy { display: flex; align-items: center; gap: 15px; max-width: 55%; }
@@ -417,7 +423,8 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
 .reward-copy p { font-size: 12px; }
 .reward-icons { display: flex; gap: 28px; margin-left: 35px; }
 .reward-icons div { text-align: center; }
-.reward-icons span { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; background: #eaf7ff; font-size: 27px; }
+.reward-icons span { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; background: #eaf7ff; }
+.reward-icons span .icon { width: 26px; height: 26px; }
 .reward-icons small { display: block; margin-top: 5px; }
 .rewards-section > .scribble { margin-left: auto; font-size: 18px; }
 
@@ -471,7 +478,7 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
   .profile-summary { grid-template-columns: 70px 1fr; }
   .chart { overflow: hidden; }
   .bars { gap: 4px; padding: 0 3px; }
-  .impact-banner .help-art { display: none; }
+  .impact-banner .impact-art { display: none; }
   .rewards-section { align-items: flex-start; flex-direction: column; }
   .reward-copy { max-width: 100%; }
   .reward-icons { margin: 10px 0; }
@@ -493,7 +500,8 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
   .silver { height: 185px; }
   .bronze { height: 165px; }
   .podium-card strong { font-size: 18px; }
-  .generic-person { width: 62px; height: 72px; }
+  .podium-avatar { width: 62px; height: 72px; }
+  .podium-avatar img { width: 62px; height: 62px; }
   .metric-grid { grid-template-columns: 1fr; }
   .bars b { display: none; }
   .bars span { font-size: 9px; }

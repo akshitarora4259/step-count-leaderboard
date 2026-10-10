@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { getWeekRange, formatWeekPill } from "@/lib/week";
 import { setStoredName, clearStoredName, getStoredName } from "@/lib/clientName";
 import { notify } from "@/lib/toastBus";
+import { Icon } from "@/components/Icon";
 
 type Status =
   | { kind: "unknown" }
@@ -16,28 +17,28 @@ const HOW_IT_WORKS = [
   {
     number: "1",
     badgeClass: "blue",
-    icon: "🔗",
-    iconClass: "",
+    icon: "fitbit",
+    iconClass: "blue-filter",
     title: "Connect",
     description: "Link your Fitbit account in seconds. No manual entries, no screenshots.",
   },
   {
     number: "2",
     badgeClass: "green",
-    icon: "↻",
-    iconClass: "green-text",
+    icon: "sync",
+    iconClass: "green-filter",
     title: "Sync",
     description: "Your steps sync automatically each day. You're always up to date.",
   },
   {
     number: "3",
     badgeClass: "yellow",
-    icon: "🏆",
-    iconClass: "yellow-text",
+    icon: "crown",
+    iconClass: "yellow-filter",
     title: "Climb the Leaderboard",
     description: "See how you're doing and stay motivated with exciting goodies.",
   },
-];
+] as const;
 
 function Home() {
   const searchParams = useSearchParams();
@@ -181,7 +182,7 @@ function Home() {
           </h1>
           <p className="lead">Walk for your health. Give for a better tomorrow.</p>
           <p className="campaign-date">
-            <span aria-hidden="true">📅</span> {datePill}
+            <Icon name="calendar" className="navy-filter" /> {datePill}
           </p>
           <p className="intro">
             Connect your Fitbit, move together with your Microsoft community, and help create a
@@ -213,10 +214,8 @@ function Home() {
           {isConnected ? (
             <div className="connect-form">
               <button type="button" className="connect-button" onClick={handleSyncNow} disabled={syncing}>
-                <span className="fitbit-dots" aria-hidden="true">
-                  ⠿
-                </span>{" "}
-                {syncing ? "Syncing…" : "Sync Now"} <span>↻</span>
+                <Icon name="fitbit" className="fitbit-dots white-filter" />{" "}
+                {syncing ? "Syncing…" : "Sync Now"} <Icon name="sync" className="white-filter" />
               </button>
               <button
                 type="button"
@@ -229,14 +228,14 @@ function Home() {
             </div>
           ) : (
             <button id="connectButton" type="button" className="connect-button" onClick={handleConnect}>
-              <span className="fitbit-dots" aria-hidden="true">
-                ⠿
-              </span>{" "}
+              <Icon name="fitbit" className="fitbit-dots white-filter" />{" "}
               {status.kind === "checking" ? "Checking…" : "Connect Fitbit"} <span>›</span>
             </button>
           )}
 
-          <p className="privacy">🔒 Secure. Private. You&apos;re in control.</p>
+          <p className="privacy">
+            <Icon name="lock" className="muted-filter" /> Secure. Private. You&apos;re in control.
+          </p>
           <p className="scribble home-scribble">
             Healthier
             <br />
@@ -247,6 +246,12 @@ function Home() {
             Communities ♡
           </p>
         </div>
+        <img
+          className="walkers"
+          src="/images/give/home-walking-group.webp"
+          alt="Illustrated colleagues walking together"
+        />
+        <img className="giving" src="/images/give/home-giving-vignette.webp" alt="Community giving illustration" />
       </div>
 
       <section className="how-section" aria-labelledby="how-title">
@@ -256,14 +261,14 @@ function Home() {
           {HOW_IT_WORKS.map((step) => (
             <article className="step-card" key={step.title}>
               <span className={`step-no ${step.badgeClass}`}>{step.number}</span>
-              <span className={`step-icon ${step.iconClass}`}>{step.icon}</span>
+              <Icon name={step.icon} className={`step-icon ${step.iconClass}`} />
               <h3>{step.title}</h3>
               <p>{step.description}</p>
             </article>
           ))}
         </div>
         <div className="goodies-strip">
-          <span className="gift">🎁</span>
+          <Icon name="gift" className="gift yellow-filter" />
           <div>
             <strong>Exciting Goodies Await!</strong>
             <p>
