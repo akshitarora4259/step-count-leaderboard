@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { clearStoredName, getStoredName } from "@/lib/clientName";
 import { formatCompactNumber, formatNumber } from "@/lib/format";
@@ -133,6 +134,9 @@ export default function MePage() {
         <div>
           <h1 id="connected-title">Your Fitbit is connected{isMock ? " (demo)" : ""}!</h1>
           <p>Your steps are syncing automatically.</p>
+        </div>
+        <div className="connected-illustration" aria-hidden="true">
+          <Image src="/images/give/connected-walker.png" alt="" fill sizes="150px" />
         </div>
         <button
           type="button"

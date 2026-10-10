@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { getWeekRange, formatWeekPill } from "@/lib/week";
 import { setStoredName, clearStoredName, getStoredName } from "@/lib/clientName";
@@ -164,29 +165,6 @@ function Home() {
   return (
     <section id="home" className="view active-view" aria-labelledby="home-title">
       <div className="home-scene">
-        <div className="sky-orb orb-one" />
-        <div className="sky-orb orb-two" />
-        <div className="tree tree-left" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
-        <div className="tree tree-right" aria-hidden="true">
-          <span />
-          <span />
-        </div>
-        <div className="office" aria-hidden="true">
-          <div className="office-logo">
-            <span className="ms-mark tiny">
-              <i />
-              <i />
-              <i />
-              <i />
-            </span>
-          </div>
-          <div className="windows" />
-        </div>
-
         <div className="give-lockup" aria-label="Give Step Challenge">
           <div className="give-word">
             <b>G</b>
@@ -268,47 +246,24 @@ function Home() {
           Communities ♡
         </p>
 
-        <div className="community-impact" aria-label="Community impact illustration">
-          <div className="impact-card-art">
-            <span className="heart">♡</span>
-            <div className="supply-box">▤</div>
-            <div className="person-art small-person" />
-            <div className="person-art small-person second-person" />
-            <p>
-              Brighter
-              <br />
-              Futures
-              <br />
-              Together
-            </p>
-          </div>
+        <div className="hero-giving" aria-label="Community impact illustration">
+          <Image
+            src="/images/give/home-giving.png"
+            alt=""
+            width={1536}
+            height={1024}
+            priority
+          />
         </div>
 
-        <div className="walkers" aria-label="Illustration of colleagues walking together">
-          <div className="walker w1">
-            <span className="head" />
-            <span className="body" />
-            <span className="leg l1" />
-            <span className="leg l2" />
-          </div>
-          <div className="walker w2">
-            <span className="head" />
-            <span className="body" />
-            <span className="leg l1" />
-            <span className="leg l2" />
-          </div>
-          <div className="walker w3">
-            <span className="head" />
-            <span className="body" />
-            <span className="leg l1" />
-            <span className="leg l2" />
-          </div>
-          <div className="walker w4">
-            <span className="head" />
-            <span className="body" />
-            <span className="leg l1" />
-            <span className="leg l2" />
-          </div>
+        <div className="hero-walkers" aria-label="Illustration of colleagues walking together">
+          <Image
+            src="/images/give/home-walkers.png"
+            alt="Colleagues walking together"
+            width={1536}
+            height={1024}
+            priority
+          />
         </div>
       </div>
 

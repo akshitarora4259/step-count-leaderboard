@@ -90,18 +90,19 @@ a { color: inherit; text-decoration: none; }
   font-size: 12px;
 }
 
-/* ---- Home hero scene ---- */
+/* ---- Home hero scene ----
+   Illustration art (office campus, trees, walkers, giving vignette) is
+   provided by real image assets (public/images/give/*) rather than CSS
+   shapes — see .hero-walkers / .hero-giving below and the background-image
+   set on .home-scene itself. All copy/buttons stay real HTML above the art. */
 .home-scene {
   position: relative;
   min-height: 665px;
   overflow: hidden;
   text-align: center;
   padding: 45px 20% 260px;
-  background: linear-gradient(#eef9ff 0%, #fffdf4 72%, #dff4e3 100%);
+  background: url("/images/give/home-background.webp") center bottom / cover no-repeat;
 }
-.sky-orb { position: absolute; border-radius: 50%; filter: blur(2px); background: rgba(255, 255, 255, .65); }
-.orb-one { width: 240px; height: 95px; left: 8%; top: 100px; }
-.orb-two { width: 300px; height: 100px; right: 4%; top: 150px; }
 .give-lockup { position: relative; z-index: 3; display: inline-block; }
 .give-word { font-size: 70px; font-weight: 900; line-height: .82; letter-spacing: -7px; }
 .give-word b:nth-child(1) { color: var(--red); }
@@ -139,79 +140,30 @@ a { color: inherit; text-decoration: none; }
 .connect-button:disabled { opacity: .7; cursor: default; transform: none; }
 .fitbit-dots { font-size: 23px; margin-right: 8px; }
 .privacy { position: relative; z-index: 3; font-size: 11px; color: #69768b; }
-.home-scribble { position: absolute; right: 8%; top: 185px; font-size: 18px; transform: rotate(-4deg); }
-.office {
+.home-scribble { position: absolute; right: 8%; top: 185px; font-size: 18px; transform: rotate(-4deg); z-index: 3; }
+/* Real image overlays replacing the former CSS-drawn office/tree/walker art. */
+.hero-walkers {
   position: absolute;
-  left: -35px;
-  bottom: 0;
-  width: 260px;
-  height: 360px;
-  background: linear-gradient(122deg, #e6eef5, #aac8df);
-  clip-path: polygon(0 7%, 88% 0, 100% 100%, 0 100%);
-  border-right: 8px solid #d5e6ef;
+  z-index: 2;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, 68vw);
+  pointer-events: none;
 }
-.office:before {
-  content: "";
+.hero-giving {
   position: absolute;
-  inset: 35px 20px 10px;
-  background:
-    repeating-linear-gradient(90deg, rgba(40, 120, 173, .45) 0 14px, transparent 14px 25px),
-    repeating-linear-gradient(0deg, transparent 0 32px, rgba(255, 255, 255, .7) 32px 36px);
+  z-index: 2;
+  right: 3%;
+  bottom: 7%;
+  width: min(220px, 20vw);
+  pointer-events: none;
 }
-.office-logo { position: absolute; z-index: 2; left: 90px; top: 55px; background: white; padding: 5px; }
-.tree { position: absolute; z-index: 2; }
-.tree-left { left: -40px; top: 10px; }
-.tree-right { right: -40px; bottom: 40px; }
-.tree:before { content: ""; display: block; width: 14px; height: 250px; background: #8b643c; margin: auto; transform: rotate(10deg); }
-.tree span { position: absolute; width: 115px; height: 80px; background: #72a92d; border-radius: 50%; }
-.tree span:nth-child(1) { top: 15px; left: -35px; }
-.tree span:nth-child(2) { top: 60px; left: 20px; background: #97bd34; }
-.tree span:nth-child(3) { top: 100px; left: -60px; background: #528d35; }
-.community-impact { position: absolute; right: 3%; bottom: 165px; }
-.impact-card-art {
-  position: relative;
-  width: 210px;
-  height: 190px;
-  border-radius: 50% 50% 15px 15px;
-  background: linear-gradient(135deg, #ffeac2, #fff8e9);
-  border: 1px solid #f4d9a8;
-}
-.impact-card-art p {
-  position: absolute;
-  right: 15px;
-  top: 15px;
-  font-family: "Segoe Print", cursive;
-  font-size: 18px;
-  color: #9b571c;
-  transform: rotate(-6deg);
-}
-.heart { position: absolute; right: 28px; top: 105px; color: #d65b39; font-size: 27px; }
-.supply-box { position: absolute; left: 75px; bottom: 19px; background: #e8a14e; padding: 7px; color: white; }
+.hero-walkers img, .hero-giving img { width: 100%; height: auto; display: block; }
+/* Generic decorative person art still used on the /me impact banner. */
 .person-art { position: absolute; width: 30px; height: 58px; border-radius: 17px 17px 8px 8px; background: #217ec8; right: 42px; bottom: 7px; }
 .person-art:before { content: ""; position: absolute; width: 21px; height: 21px; border-radius: 50%; background: #f0bb90; left: 4px; top: -14px; }
 .second-person { right: 76px; background: #ec7641; transform: scale(.9); }
-.walkers {
-  position: absolute;
-  z-index: 4;
-  left: 22%;
-  right: 18%;
-  bottom: 4px;
-  height: 225px;
-  display: flex;
-  justify-content: space-around;
-  align-items: flex-end;
-}
-.walker { position: relative; width: 90px; height: 210px; }
-.walker .head { position: absolute; width: 42px; height: 47px; border-radius: 50%; background: #d79c71; top: 3px; left: 24px; border-top: 13px solid #382b25; }
-.walker .body { position: absolute; width: 70px; height: 105px; border-radius: 30px 30px 14px 14px; top: 45px; left: 10px; background: #2178c7; }
-.walker .leg { position: absolute; width: 23px; height: 77px; top: 137px; background: #273653; border-radius: 13px; transform-origin: top; }
-.walker .l1 { left: 24px; transform: rotate(7deg); }
-.walker .l2 { left: 52px; transform: rotate(-10deg); }
-.w2 { transform: scale(1.08); }
-.w2 .body { background: #ece8df; }
-.w3 .body { background: #188b77; }
-.w4 .body { background: #ffb526; }
-.w4 { transform: scale(.94); }
 
 /* ---- How it works / goodies strip ---- */
 .how-section { position: relative; margin-top: -3px; padding: 20px 30px 28px; background: #fff; }
@@ -338,6 +290,12 @@ a { color: inherit; text-decoration: none; }
 }
 .gold .medal { background: #f1a900; color: #fff; }
 .bronze .medal { background: #a95527; color: #fff; }
+/* Podium characters are real illustration assets (public/images/give/runner-*.png). */
+.podium-avatar { position: relative; margin: 10px auto 7px; width: 96px; height: 118px; }
+.podium-avatar img { object-fit: contain; }
+.crown { position: absolute; top: 0; left: 50%; transform: translate(-50%, -60%); font-size: 35px; color: #f3aa00; z-index: 2; }
+/* Generic CSS-drawn avatar still used for the /me profile illustration (no
+   dedicated profile-photo asset was supplied). */
 .runner-avatar { position: relative; margin: 14px auto 7px; width: 72px; height: 72px; border-radius: 50%; background: #e4f3ff; overflow: hidden; }
 .runner-avatar:before {
   content: "";
@@ -351,9 +309,6 @@ a { color: inherit; text-decoration: none; }
   border-top: 9px solid #322a28;
 }
 .runner-avatar:after { content: ""; position: absolute; width: 50px; height: 40px; border-radius: 26px 26px 0 0; background: #1687d2; left: 11px; top: 42px; }
-.avatar-two:after { background: #2166b1; }
-.avatar-three:after { background: #179158; }
-.crown { position: absolute; top: 0; left: 50%; transform: translate(-50%, -60%); font-size: 35px; color: #f3aa00; }
 
 /* ---- Ranking list ---- */
 .ranking-card { margin: 0 35px; border: 1px solid var(--line); border-radius: 0 0 16px 16px; background: #fff; padding: 9px 16px 15px; }
@@ -399,6 +354,10 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
 .success { width: 44px; height: 44px; border-radius: 50%; background: #149b3d; color: white; display: grid; place-items: center; font-size: 28px; font-weight: 800; }
 .disconnect-button { margin-left: auto; border: 1px solid #d74c4c; border-radius: 10px; padding: 11px 18px; background: #fff7f4; color: #b51f28; cursor: pointer; }
 .disconnect-button:disabled { opacity: .7; cursor: default; }
+
+/* Supporting wellness illustration (public/images/give/connected-walker.png). */
+.connected-illustration { position: relative; width: 150px; height: 100px; flex: none; }
+.connected-illustration img { object-fit: contain; }
 
 .profile-summary, .weekly-card, .impact-banner, .rewards-section {
   margin: 0 35px 20px;
@@ -488,11 +447,10 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
   .microsoft-brand span:last-child { display: none; }
   .topbar nav { gap: 12px; }
   .home-scene { padding: 42px 12px 250px; }
-  .eyebrow, .home-scribble, .community-impact, .tree-right { display: none; }
+  .eyebrow, .home-scribble, .hero-giving { display: none; }
   .give-word { font-size: 58px; }
   .home-scene h1 { font-size: 35px; }
-  .office { opacity: .55; }
-  .walkers { left: 6%; right: 6%; transform: scale(.75); transform-origin: bottom; }
+  .hero-walkers { width: 86vw; }
   .step-grid, .summary-grid, .metric-grid { grid-template-columns: 1fr; }
   .summary-grid article { border-right: 0; border-bottom: 1px solid var(--line); }
   .page-heading { padding: 20px; gap: 12px; }
@@ -504,6 +462,7 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
     margin-left: 14px;
     margin-right: 14px;
   }
+  .connected-illustration { display: none; }
   .summary-grid { margin-left: 14px; margin-right: 14px; }
   .ranking-head, .ranking-row { grid-template-columns: 30px 1fr 86px; }
   .ranking-head span:last-child, .ranking-row .step-bar { display: none; }
@@ -522,7 +481,7 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
   .topbar nav { order: 3; width: 100%; height: 46px; justify-content: space-between; }
   .nav-link { font-size: 12px; }
   .home-scene { min-height: 690px; }
-  .walkers { transform: scale(.58); left: -12%; right: -12%; }
+  .hero-walkers { width: 94vw; }
   .step-grid { grid-template-columns: 1fr; }
   .page-heading .scribble { display: none; }
   .compact .give-word { font-size: 40px; }
@@ -533,6 +492,7 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
   .silver { height: 185px; }
   .bronze { height: 165px; }
   .podium-card strong { font-size: 18px; }
+  .podium-avatar { width: 78px; height: 96px; }
   .metric-grid { grid-template-columns: 1fr; }
   .bars b { display: none; }
   .bars span { font-size: 9px; }
