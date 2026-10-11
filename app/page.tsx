@@ -166,6 +166,7 @@ function Home() {
     <section id="home" className="view active-view" aria-labelledby="home-title">
       <div className="home-scene">
         <div className="hero-shade" aria-hidden="true" />
+        <p className="eyebrow">PEOPLE • PURPOSE • A BRIGHTER TOMORROW</p>
         <div className="hero-copy">
           <div className="give-lockup" aria-label="Give Step Challenge">
             <div className="give-word">
@@ -176,7 +177,6 @@ function Home() {
             </div>
             <div className="script-title">Step Challenge</div>
           </div>
-          <p className="eyebrow">PEOPLE • PURPOSE • A BRIGHTER TOMORROW</p>
           <h1 id="home-title">
             Every Step Is a <span>Give</span>
           </h1>
@@ -236,16 +236,16 @@ function Home() {
           <p className="privacy">
             <Icon name="lock" className="muted-filter" /> Secure. Private. You&apos;re in control.
           </p>
-          <p className="scribble home-scribble">
-            Healthier
-            <br />
-            People
-            <br />
-            Stronger
-            <br />
-            Communities ♡
-          </p>
         </div>
+        <p className="scribble home-scribble">
+          Healthier
+          <br />
+          People
+          <br />
+          Stronger
+          <br />
+          Communities ♡
+        </p>
         <img
           className="walkers"
           src="/images/give/home-walking-group.webp"
