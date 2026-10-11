@@ -19,6 +19,15 @@ export default function AboutPage() {
         read the number for you automatically. Follow the overall challenge progress for the
         current one-week event, no manual typing required.
       </p>
+      <h2>Take a Step. Make a Difference.</h2>
+      <p>
+        Contribute to Microsoft Give by{" "}
+        <a href="https://aka.ms/give" target="_blank" rel="noopener noreferrer">
+          donating through the Give portal
+        </a>{" "}
+        or visiting the <b>IDC Give booths at B4 and B2</b>. Every action, big or small, helps
+        create a greater collective impact.
+      </p>
     </section>
   );
 }

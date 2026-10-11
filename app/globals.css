@@ -414,6 +414,9 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
 .impact-banner h2 { font-size: 17px; color: var(--navy); margin: 0; }
 .impact-banner p { font-size: 12px; }
 .impact-art { margin-left: auto; width: 190px; height: 84px; object-fit: cover; border-radius: 12px; box-shadow: var(--shadow); }
+.give-banner > div { flex: 1; }
+.give-banner p { margin: 4px 0 14px; }
+.give-button { display: inline-block; font-size: 14px; padding: 11px 22px; }
 
 .rewards-section { position: relative; padding: 20px; display: flex; align-items: center; }
 .reward-copy { display: flex; align-items: center; gap: 15px; max-width: 55%; }
@@ -429,7 +432,9 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
 /* ---- Simple pages (About / FAQ) ---- */
 .simple-page { padding: 70px 12%; min-height: 680px; text-align: center; }
 .simple-page h1 { font-size: 38px; color: var(--navy); }
+.simple-page h2 { font-size: 24px; color: var(--navy); margin: 36px 0 10px; }
 .simple-page p { font-size: 18px; line-height: 1.7; }
+.simple-page a { color: #087add; text-decoration: underline; font-weight: 700; }
 .simple-page details { text-align: left; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 17px 20px; margin: 13px auto; max-width: 760px; }
 .simple-page summary { font-weight: 700; color: var(--navy); cursor: pointer; }
 

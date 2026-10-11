@@ -496,6 +496,27 @@ function Home() {
         <img className="giving" src="/images/give/home-giving-vignette.webp" alt="Community giving illustration" />
       </div>
 
+      <section className="impact-banner give-banner">
+        <span className="impact-heart">
+          <Icon name="heart" className="red-filter" />
+        </span>
+        <div>
+          <h2>Take a Step. Make a Difference.</h2>
+          <p>
+            Contribute to Microsoft Give or visit the <b>IDC Give booths at B4 and B2</b> — every
+            action, big or small, helps create a greater collective impact.
+          </p>
+          <a
+            className="connect-button give-button"
+            href="https://aka.ms/give"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Donate on Give Portal
+          </a>
+        </div>
+      </section>
+
       <section className="how-section" aria-labelledby="how-title">
         <h2 id="how-title">How it works</h2>
         <p>Get started in 3 simple steps</p>
