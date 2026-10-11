@@ -97,7 +97,7 @@ function AuthGate({ auth, onSignedIn }: { auth: AuthState; onSignedIn: (email: s
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, code: trimmedCode }),
+        body: JSON.stringify({ email: trimmedEmail, token: trimmedCode }),
       });
       const body = await res.json();
       if (res.ok) {
@@ -138,10 +138,10 @@ function AuthGate({ auth, onSignedIn }: { auth: AuthState; onSignedIn: (email: s
         <input
           type="text"
           inputMode="numeric"
-          maxLength={6}
+          maxLength={8}
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          placeholder="6-digit code"
+          placeholder="Verification code"
           aria-label="Verification code"
         />
       )}
