@@ -73,9 +73,9 @@ export default function LeaderboardPage() {
     return (
       <section id="leaderboard" className="view active-view">
         <div className="empty-state">
-          <p>No entries yet this week. Be the first to connect and start syncing!</p>
+          <p>No entries yet this week. Be the first to sign in and upload a screenshot!</p>
           <Link href="/" className="muted-link">
-            Connect Fitbit
+            Upload a Screenshot
           </Link>
         </div>
       </section>

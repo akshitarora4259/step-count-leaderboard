@@ -1,39 +1,38 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { getWeekRange, formatWeekPill } from "@/lib/week";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getWeekRange, formatWeekPill, todayISODate } from "@/lib/week";
 import { setStoredName, clearStoredName, getStoredName } from "@/lib/clientName";
 import { notify } from "@/lib/toastBus";
 import { Icon } from "@/components/Icon";
-
-type Status =
-  | { kind: "unknown" }
-  | { kind: "checking" }
-  | { kind: "not_connected" }
-  | { kind: "connected"; isMock: boolean };
 
 type AuthState =
   | { kind: "loading" }
   | { kind: "signed_out"; mockMode: boolean }
   | { kind: "signed_in"; email: string; mockMode: boolean };
 
+type UploadState =
+  | { kind: "idle" }
+  | { kind: "uploading" }
+  | { kind: "success"; steps: number }
+  | { kind: "error"; message: string };
+
 const HOW_IT_WORKS = [
   {
     number: "1",
     badgeClass: "blue",
-    icon: "fitbit",
+    icon: "lock",
     iconClass: "blue-filter",
-    title: "Connect",
-    description: "Link your Fitbit account in seconds. No manual entries, no screenshots.",
+    title: "Sign In",
+    description: "Verify your work email with a one-time code. No passwords to remember.",
   },
   {
     number: "2",
     badgeClass: "green",
-    icon: "sync",
+    icon: "camera",
     iconClass: "green-filter",
-    title: "Sync",
-    description: "Your steps sync automatically each day. You're always up to date.",
+    title: "Snap & Upload",
+    description: "Screenshot your phone's step counter and upload it. We read the number for you.",
   },
   {
     number: "3",
@@ -46,13 +45,12 @@ const HOW_IT_WORKS = [
 ] as const;
 
 /**
- * Email-OTP login gate. Must be verified before the name + Connect Fitbit
- * UI is shown — this is what makes `user_id` (not a self-reported name) the
- * real identity behind every Fitbit connect/disconnect/sync action.
+ * Email-OTP login gate. Must be verified before the name + screenshot
+ * upload UI is shown — this is what makes `user_id` (not a self-reported
+ * name) the real identity behind every submission.
  *
  * In mock mode (no Supabase project configured), there's no real email
- * delivery — "Continue (demo mode)" logs the typed email in immediately,
- * mirroring the existing Fitbit mock-connect pattern for local dev.
+ * delivery — "Continue (demo mode)" logs the typed email in immediately.
  */
 function AuthGate({ auth, onSignedIn }: { auth: AuthState; onSignedIn: (email: string) => void }) {
   const [email, setEmail] = useState("");
@@ -160,31 +158,18 @@ function AuthGate({ auth, onSignedIn }: { auth: AuthState; onSignedIn: (email: s
 }
 
 function Home() {
-  const searchParams = useSearchParams();
   const weekRange = useMemo(() => getWeekRange(), []);
   const datePill = useMemo(() => formatWeekPill(weekRange), [weekRange]);
+  const today = useMemo(() => todayISODate(), []);
 
   const [auth, setAuth] = useState<AuthState>({ kind: "loading" });
   const [name, setName] = useState("");
-  const [status, setStatus] = useState<Status>({ kind: "unknown" });
-  const [syncing, setSyncing] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
-
-  const checkStatus = useCallback(async () => {
-    setStatus({ kind: "checking" });
-    try {
-      const res = await fetch("/api/fitbit/status");
-      const body = await res.json();
-      if (body.connected) {
-        setStatus({ kind: "connected", isMock: Boolean(body.isMock) });
-        if (body.name) setStoredName(body.name);
-      } else {
-        setStatus({ kind: "not_connected" });
-      }
-    } catch {
-      setStatus({ kind: "not_connected" });
-    }
-  }, []);
+  const [todaySteps, setTodaySteps] = useState<number | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [upload, setUpload] = useState<UploadState>({ kind: "idle" });
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadAuthStatus = useCallback(async () => {
     try {
@@ -200,84 +185,59 @@ function Home() {
     }
   }, []);
 
+  const loadTodayStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/profile");
+      if (!res.ok) {
+        setTodaySteps(null);
+        return;
+      }
+      const body = await res.json();
+      if (body.name) setName((current) => current || body.name);
+      const todayEntry = (body.daily ?? []).find((d: { date: string; steps: number }) => d.date === today);
+      setTodaySteps(todayEntry && todayEntry.steps > 0 ? todayEntry.steps : null);
+    } catch {
+      setTodaySteps(null);
+    }
+  }, [today]);
+
   useEffect(() => {
     loadAuthStatus();
-
     const stored = getStoredName();
     if (stored) setName(stored);
-
-    const paramName = searchParams.get("name");
-    const connected = searchParams.get("connected");
-    const mock = searchParams.get("mock");
-    const err = searchParams.get("fitbit_error");
-    const warning = searchParams.get("fitbit_warning");
-
-    if (paramName) setName(paramName);
-    if (connected === "1") {
-      notify(
-        warning ??
-          (mock === "1"
-            ? "Fitbit connected (demo mode) — sample step data generated for this week."
-            : "Connected to Fitbit! Your steps will sync automatically.")
-      );
-    } else if (err) {
-      notify(`Fitbit connection failed: ${err}`);
-    }
-    // Only run once, on mount — this reads the redirect params/stored name, not live state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadAuthStatus]);
 
   useEffect(() => {
     if (auth.kind === "signed_in") {
-      checkStatus();
+      loadTodayStatus();
     }
-  }, [auth.kind, checkStatus]);
+  }, [auth.kind, loadTodayStatus]);
 
-  function handleConnect() {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      notify("Please enter your name first.");
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null);
       return;
     }
-    const params = new URLSearchParams({ name: trimmed });
-    window.location.href = `/api/fitbit/connect?${params.toString()}`;
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  function pickFile(selected: File | null) {
+    if (!selected) return;
+    if (!selected.type.startsWith("image/")) {
+      notify("Please choose an image file.");
+      return;
+    }
+    setFile(selected);
+    setUpload({ kind: "idle" });
   }
 
-  async function handleDisconnect() {
-    setDisconnecting(true);
-    try {
-      const res = await fetch("/api/fitbit/disconnect", { method: "POST" });
-      const body = await res.json();
-      if (res.ok) {
-        setStatus({ kind: "not_connected" });
-        clearStoredName();
-        notify("Disconnected — your synced step data has been removed.");
-      } else {
-        notify(body.error ?? "Failed to disconnect.");
-      }
-    } catch {
-      notify("Network error — please try again.");
-    } finally {
-      setDisconnecting(false);
-    }
-  }
-
-  async function handleSyncNow() {
-    setSyncing(true);
-    try {
-      const res = await fetch("/api/fitbit/sync?self=1");
-      const body = await res.json();
-      if (res.ok) {
-        notify("Synced! Check the leaderboard for your latest steps.");
-      } else {
-        const message = body.synced?.[0]?.error ?? body.error ?? "Sync failed.";
-        notify(message);
-      }
-    } catch {
-      notify("Network error — please try again.");
-    } finally {
-      setSyncing(false);
-    }
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragOver(false);
+    const dropped = e.dataTransfer.files?.[0];
+    pickFile(dropped ?? null);
   }
 
   async function handleSignOut() {
@@ -287,12 +247,44 @@ function Home() {
       // Ignore — we still clear local UI state below either way.
     }
     clearStoredName();
-    setStatus({ kind: "unknown" });
     setName("");
+    setFile(null);
+    setTodaySteps(null);
+    setUpload({ kind: "idle" });
     loadAuthStatus();
   }
 
-  const isConnected = status.kind === "connected";
+  async function handleUpload() {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      notify("Please enter your name first.");
+      return;
+    }
+    if (!file) {
+      notify("Please choose a screenshot to upload.");
+      return;
+    }
+    setStoredName(trimmed);
+    setUpload({ kind: "uploading" });
+    try {
+      const formData = new FormData();
+      formData.set("name", trimmed);
+      formData.set("screenshot", file);
+      const res = await fetch("/api/steps/upload", { method: "POST", body: formData });
+      const body = await res.json();
+      if (res.ok) {
+        setUpload({ kind: "success", steps: body.steps });
+        setTodaySteps(body.steps);
+        setFile(null);
+        notify(`Detected ${body.steps.toLocaleString()} steps — recorded for today!`);
+      } else {
+        setUpload({ kind: "error", message: body.error ?? "Upload failed." });
+      }
+    } catch {
+      setUpload({ kind: "error", message: "Network error — please try again." });
+    }
+  }
+
   const isSignedIn = auth.kind === "signed_in";
 
   return (
@@ -318,8 +310,9 @@ function Home() {
             <Icon name="calendar" className="navy-filter" /> {datePill}
           </p>
           <p className="intro">
-            Connect your Fitbit, move together with your Microsoft community, and help create a
-            healthier, kinder world. Every step you take contributes to real impact.
+            Snap a screenshot of your phone&apos;s step count each day, upload it here, and help
+            your Microsoft community create a healthier, kinder world. Every step you take
+            contributes to real impact.
           </p>
 
           {auth.kind === "loading" ? null : !isSignedIn ? (
@@ -345,51 +338,91 @@ function Home() {
                 </button>
               </p>
 
-              {!isConnected && (
-                <div className="connect-form">
-                  <input
-                    type="text"
-                    required
-                    maxLength={100}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Your name"
-                    aria-label="Your name"
-                  />
-                </div>
+              <div className="connect-form">
+                <input
+                  type="text"
+                  required
+                  maxLength={100}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your name"
+                  aria-label="Your name"
+                />
+              </div>
+
+              {todaySteps !== null && upload.kind !== "success" && (
+                <p className="privacy" style={{ color: "var(--green, #2f855a)" }}>
+                  <Icon name="check" className="muted-filter" /> Already recorded{" "}
+                  {todaySteps.toLocaleString()} steps for today — upload again to replace it.
+                </p>
               )}
 
-              {isConnected ? (
-                <div className="connect-form">
-                  <button
-                    type="button"
-                    className="connect-button"
-                    onClick={handleSyncNow}
-                    disabled={syncing}
-                  >
-                    <Icon name="fitbit" className="fitbit-dots white-filter" />{" "}
-                    {syncing ? "Syncing…" : "Sync Now"} <Icon name="sync" className="white-filter" />
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={handleDisconnect}
-                    disabled={disconnecting}
-                  >
-                    {disconnecting ? "Disconnecting…" : "Disconnect"}
-                  </button>
-                </div>
-              ) : (
-                <button
-                  id="connectButton"
-                  type="button"
-                  className="connect-button"
-                  onClick={handleConnect}
-                >
-                  <Icon name="fitbit" className="fitbit-dots white-filter" />{" "}
-                  {status.kind === "checking" ? "Checking…" : "Connect Fitbit"} <span>›</span>
-                </button>
+              <div
+                className="upload-dropzone"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                aria-label="Upload a screenshot of your step count"
+                style={{
+                  border: dragOver ? "2px dashed var(--blue, #2b6cb0)" : "2px dashed rgba(0,0,0,0.2)",
+                  borderRadius: 12,
+                  padding: "1.5rem",
+                  textAlign: "center",
+                  cursor: "pointer",
+                  marginTop: 12,
+                  background: dragOver ? "rgba(43,108,176,0.06)" : "rgba(255,255,255,0.4)",
+                }}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
+                />
+                {previewUrl ? (
+                  <img
+                    src={previewUrl}
+                    alt="Selected step-count screenshot preview"
+                    style={{ maxHeight: 180, maxWidth: "100%", borderRadius: 8, margin: "0 auto" }}
+                  />
+                ) : (
+                  <>
+                    <Icon name="camera" className="navy-filter" />
+                    <p style={{ margin: "0.5rem 0 0" }}>
+                      Drag & drop today&apos;s step-count screenshot here, or click to choose a file
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {upload.kind === "success" && (
+                <p className="privacy" style={{ color: "var(--green, #2f855a)" }}>
+                  <Icon name="check" className="muted-filter" /> Detected{" "}
+                  {upload.steps.toLocaleString()} steps ✅ Recorded for today.
+                </p>
               )}
+              {upload.kind === "error" && (
+                <p className="privacy" style={{ color: "var(--red, #c53030)" }}>
+                  {upload.message}
+                </p>
+              )}
+
+              <button
+                type="button"
+                className="connect-button"
+                onClick={handleUpload}
+                disabled={upload.kind === "uploading" || !file}
+              >
+                <Icon name="camera" className="white-filter" />{" "}
+                {upload.kind === "uploading" ? "Reading screenshot…" : "Upload & Detect Steps"}
+              </button>
             </>
           )}
 

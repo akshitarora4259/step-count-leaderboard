@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import { listConnections } from "@/lib/fitbitConnections";
-import { maybeLazySync } from "@/lib/fitbitSync";
 import { getStepsInRange } from "@/lib/steps";
 import { getWeekRange } from "@/lib/week";
 
@@ -9,10 +7,6 @@ export type LeaderboardEntry = {
   totalSteps: number;
   daysLogged: number;
   dailyAverage: number;
-  /** Whether this participant currently has a Fitbit connection. */
-  fitbitConnected: boolean;
-  /** Whether that connection is a local demo/mock connection (no real Fitbit account). */
-  isMock: boolean;
 };
 
 export type LeaderboardStats = {
@@ -26,11 +20,6 @@ export type LeaderboardStats = {
 export async function GET() {
   const { startDate, endDate } = getWeekRange();
 
-  // Best-effort, throttled: refresh any stale Fitbit connections' step data
-  // before computing the leaderboard, so results stay reasonably fresh even
-  // without Vercel Cron configured.
-  await maybeLazySync();
-
   let rows: { name: string; steps: number; entry_date: string }[];
   try {
     rows = await getStepsInRange(startDate, endDate);
@@ -39,15 +28,6 @@ export async function GET() {
       { error: err instanceof Error ? err.message : "Failed to load leaderboard." },
       { status: 500 }
     );
-  }
-
-  const connectionByName = new Map<string, boolean>();
-  try {
-    for (const conn of await listConnections()) {
-      connectionByName.set(conn.name.toLowerCase(), conn.isMock);
-    }
-  } catch {
-    // Non-fatal — leaderboard totals still work even if connection lookup fails.
   }
 
   const byName = new Map<string, { totalSteps: number; daysLogged: number }>();
@@ -59,17 +39,12 @@ export async function GET() {
   }
 
   const leaderboard: LeaderboardEntry[] = Array.from(byName.entries())
-    .map(([name, { totalSteps, daysLogged }]) => {
-      const isMock = connectionByName.get(name.toLowerCase());
-      return {
-        name,
-        totalSteps,
-        daysLogged,
-        dailyAverage: Math.round(totalSteps / daysLogged),
-        fitbitConnected: connectionByName.has(name.toLowerCase()),
-        isMock: isMock ?? false,
-      };
-    })
+    .map(([name, { totalSteps, daysLogged }]) => ({
+      name,
+      totalSteps,
+      daysLogged,
+      dailyAverage: Math.round(totalSteps / daysLogged),
+    }))
     .sort((a, b) => b.totalSteps - a.totalSteps);
 
   const totalSteps = leaderboard.reduce((sum, entry) => sum + entry.totalSteps, 0);

@@ -2,18 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { clearStoredName } from "@/lib/clientName";
 import { formatCompactNumber, formatNumber } from "@/lib/format";
 import { todayISODate } from "@/lib/week";
-import { notify } from "@/lib/toastBus";
 import type { ProfileResponse } from "@/app/api/profile/route";
 import { Icon } from "@/components/Icon";
 
 type State =
   | { kind: "loading" }
   | { kind: "signed_out" }
-  | { kind: "not_connected" }
-  | { kind: "connected"; name: string; isMock: boolean; profile: ProfileResponse };
+  | { kind: "no_entries" }
+  | { kind: "active"; profile: ProfileResponse };
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_LABELS = [
@@ -27,54 +25,30 @@ function shortDayDate(iso: string): string {
 
 export default function MePage() {
   const [state, setState] = useState<State>({ kind: "loading" });
-  const [disconnecting, setDisconnecting] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const statusRes = await fetch("/api/fitbit/status");
-      const statusBody = await statusRes.json();
-      if (!statusBody.signedIn) {
+      const authRes = await fetch("/api/auth/status");
+      const authBody = await authRes.json();
+      if (!authBody.user) {
         setState({ kind: "signed_out" });
-        return;
-      }
-      if (!statusBody.connected) {
-        setState({ kind: "not_connected" });
         return;
       }
       const profileRes = await fetch("/api/profile");
       if (!profileRes.ok) {
-        setState({ kind: "not_connected" });
+        setState({ kind: "no_entries" });
         return;
       }
       const profile: ProfileResponse = await profileRes.json();
-      setState({
-        kind: "connected",
-        name: statusBody.name ?? profile.name,
-        isMock: Boolean(statusBody.isMock),
-        profile,
-      });
+      setState({ kind: "active", profile });
     } catch {
-      setState({ kind: "not_connected" });
+      setState({ kind: "no_entries" });
     }
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
-
-  async function handleDisconnect() {
-    setDisconnecting(true);
-    try {
-      await fetch("/api/fitbit/disconnect", { method: "POST" });
-      notify("Disconnected — your synced step data has been removed.");
-    } catch {
-      notify("Network error — please try again.");
-    } finally {
-      clearStoredName();
-      setDisconnecting(false);
-      setState({ kind: "not_connected" });
-    }
-  }
 
   if (state.kind === "loading") {
     return (
@@ -84,24 +58,25 @@ export default function MePage() {
     );
   }
 
-  if (state.kind === "signed_out" || state.kind === "not_connected") {
+  if (state.kind === "signed_out" || state.kind === "no_entries") {
     return (
       <section id="connected" className="view active-view">
         <div className="empty-state">
           <p>
-            {state.kind === "not_connected"
-              ? "You're signed in, but not connected to Fitbit yet."
-              : "Sign in and connect your Fitbit to see your own stats and weekly chart here."}
+            {state.kind === "no_entries"
+              ? "You're signed in, but haven't uploaded a step screenshot yet this week."
+              : "Sign in and upload your daily step screenshot to see your own stats and weekly chart here."}
           </p>
           <Link href="/" className="connect-button" style={{ display: "inline-block", marginTop: 16 }}>
-            {state.kind === "not_connected" ? "Connect Fitbit ›" : "Go to Sign In ›"}
+            {state.kind === "no_entries" ? "Upload a Screenshot ›" : "Go to Sign In ›"}
           </Link>
         </div>
       </section>
     );
   }
 
-  const { name, isMock, profile } = state;
+  const { profile } = state;
+  const { name } = profile;
   const today = todayISODate();
   const todaysSteps = profile.daily.find((d) => d.date === today)?.steps ?? 0;
 
@@ -136,17 +111,12 @@ export default function MePage() {
           <Icon name="check" className="white-filter" />
         </div>
         <div>
-          <h1 id="connected-title">Your Fitbit is connected{isMock ? " (demo)" : ""}!</h1>
-          <p>Your steps are syncing automatically.</p>
+          <h1 id="connected-title">You&apos;re all set, {name}!</h1>
+          <p>Upload a fresh screenshot each day to keep your streak going.</p>
         </div>
-        <button
-          type="button"
-          className="disconnect-button"
-          onClick={() => handleDisconnect()}
-          disabled={disconnecting}
-        >
-          {disconnecting ? "Disconnecting…" : "Disconnect"}
-        </button>
+        <Link href="/" className="disconnect-button" style={{ textDecoration: "none", display: "inline-block" }}>
+          Upload Today&apos;s Steps
+        </Link>
       </div>
 
       <section className="profile-summary">

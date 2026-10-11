@@ -12,7 +12,8 @@ type IconName =
   | "users"
   | "gift"
   | "bag"
-  | "sparkles";
+  | "sparkles"
+  | "camera";
 
 /**
  * Renders one of the monochrome SVG icons from the "polished" design pack

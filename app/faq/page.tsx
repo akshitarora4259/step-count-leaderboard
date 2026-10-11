@@ -3,11 +3,15 @@ export const metadata = { title: "FAQ — GIVE Step Challenge" };
 const FAQS = [
   {
     q: "Do I need to enter steps manually?",
-    a: "No. Connect Fitbit once and the experience is designed to sync step totals automatically.",
+    a: "You don't type a number. Just screenshot your phone's step counter each day and upload it — we read the step count from the image automatically (OCR).",
   },
   {
-    q: "Can I disconnect?",
-    a: "Yes. Use the Disconnect control on the connected (/me) page to opt out at any time.",
+    q: "What if the step count isn't detected correctly?",
+    a: "You'll see a clear error and can retry right away with a clearer screenshot. Nothing is saved unless a valid step count is detected.",
+  },
+  {
+    q: "Can I upload more than once a day?",
+    a: "Yes — re-uploading on the same day replaces that day's entry rather than adding a duplicate.",
   },
   {
     q: "Is there a team leaderboard?",
@@ -15,7 +19,7 @@ const FAQS = [
   },
   {
     q: "What counts toward the leaderboard?",
-    a: "Total steps synced from Monday through Sunday of the current challenge week, summed across all your connected days.",
+    a: "Total steps from screenshots uploaded Monday through Sunday of the current challenge week, summed across all your days.",
   },
 ];
 

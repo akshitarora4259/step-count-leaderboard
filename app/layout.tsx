@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "GIVE Step Challenge",
-  description: "Company step count give event — connect Fitbit and check the leaderboard.",
+  description: "Company step count give event — upload a daily step screenshot and check the leaderboard.",
 };
 
 export default function RootLayout({

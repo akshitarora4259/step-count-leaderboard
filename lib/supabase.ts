@@ -38,12 +38,12 @@ export function getSupabaseClient(): SupabaseClient {
 /**
  * Lazily-initialized Supabase admin client (service role key).
  *
- * Used ONLY server-side, ONLY for the `fitbit_connections` table, which
- * stores encrypted OAuth tokens and must never be reachable via the public
- * anon key / client-side code. The service role key bypasses Row Level
- * Security, which is intentional here since `fitbit_connections` has RLS
- * enabled with no policies (see supabase/migrations/0003_fitbit_connections.sql) —
- * i.e. the anon key gets zero access to that table by design.
+ * Used server-side only: to write `steps` rows (the anon key's public
+ * write access was revoked in migration 0005 — all writes go through a
+ * route that has already verified the caller's session) and to upload/
+ * delete files in the private `step-screenshots` Storage bucket (see
+ * lib/screenshotStorage.ts), which is RLS'd so the anon key can't reach
+ * another user's files.
  */
 let adminClient: SupabaseClient | null = null;
 
@@ -61,7 +61,7 @@ export function getSupabaseAdminClient(): SupabaseClient {
   if (!url || !serviceKey) {
     throw new Error(
       "Missing Supabase admin environment variables. Set NEXT_PUBLIC_SUPABASE_URL and " +
-        "SUPABASE_SERVICE_ROLE_KEY (see README.md) — required to store Fitbit OAuth tokens."
+        "SUPABASE_SERVICE_ROLE_KEY (see README.md) — required to write steps/upload screenshots."
     );
   }
 
@@ -79,25 +79,7 @@ export type StepEntry = {
   user_id: string | null;
   steps: number;
   entry_date: string;
+  /** Path/URL of the uploaded screenshot this step count was OCR'd from, if any. */
+  screenshot_url: string | null;
   created_at: string;
-};
-
-/**
- * Row shape for the `fitbit_connections` table (and its in-memory dev
- * mirror). `access_token` / `refresh_token` are stored already encrypted
- * (see lib/crypto.ts) — decrypt only right before calling Fitbit's API.
- */
-export type FitbitConnectionRow = {
-  id: string;
-  name: string;
-  email: string | null;
-  /** Owning Supabase Auth user — the real authorization boundary (see lib/identity.ts). */
-  user_id: string | null;
-  fitbit_user_id: string | null;
-  access_token: string;
-  refresh_token: string;
-  token_expires_at: string;
-  is_mock: boolean;
-  connected_at: string;
-  updated_at: string;
 };

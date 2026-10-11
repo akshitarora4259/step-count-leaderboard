@@ -14,10 +14,10 @@ export default function AboutPage() {
       </div>
       <h1>Healthier people. Stronger communities.</h1>
       <p>
-        The Give Step Challenge combines everyday movement with collective social impact. Connect
-        your Fitbit once, let your steps sync automatically, and follow the overall challenge
-        progress for the current one-week event — no login beyond your name, and you can
-        disconnect at any time.
+        The Give Step Challenge combines everyday movement with collective social impact.
+        Verify your email, screenshot your phone&apos;s step count each day, and upload it — we
+        read the number for you automatically. Follow the overall challenge progress for the
+        current one-week event, no manual typing required.
       </p>
     </section>
   );

@@ -44,3 +44,6 @@ design-reference.png
 design-reference-panel1.png
 design-reference-panel2.png
 design-reference-panel3.png
+
+# tesseract.js downloads/caches trained-data models here at runtime
+*.traineddata
