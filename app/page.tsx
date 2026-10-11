@@ -83,6 +83,7 @@ function Home() {
     const connected = searchParams.get("connected");
     const mock = searchParams.get("mock");
     const err = searchParams.get("fitbit_error");
+    const warning = searchParams.get("fitbit_warning");
 
     if (paramName) {
       setName(paramName);
@@ -93,9 +94,10 @@ function Home() {
     }
     if (connected === "1") {
       notify(
-        mock === "1"
-          ? "Fitbit connected (demo mode) — sample step data generated for this week."
-          : "Connected to Fitbit! Your steps will sync automatically."
+        warning ??
+          (mock === "1"
+            ? "Fitbit connected (demo mode) — sample step data generated for this week."
+            : "Connected to Fitbit! Your steps will sync automatically.")
       );
     } else if (err) {
       notify(`Fitbit connection failed: ${err}`);

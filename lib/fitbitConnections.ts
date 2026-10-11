@@ -7,6 +7,7 @@ import { decryptToken, encryptToken } from "@/lib/crypto";
 import {
   deleteFitbitConnection as deleteMemoryConnection,
   getFitbitConnection as getMemoryConnection,
+  getFitbitConnectionByFitbitUserId as getMemoryConnectionByFitbitUserId,
   listFitbitConnections as listMemoryConnections,
   upsertFitbitConnection as upsertMemoryConnection,
 } from "@/lib/memoryStore";
@@ -106,6 +107,55 @@ export async function getConnection(name: string): Promise<DecryptedConnection |
     throw new Error(error.message);
   }
   return data ? fromRow(data as FitbitConnectionRow) : null;
+}
+
+/** Case-sensitive lookup by Fitbit's opaque `user_id` — used to detect the
+ * same real Fitbit account already being linked under a different
+ * participant name (see migration 0004's partial unique index). */
+export async function getConnectionByFitbitUserId(
+  fitbitUserId: string
+): Promise<DecryptedConnection | null> {
+  if (!isSupabaseAdminConfigured()) {
+    const row = getMemoryConnectionByFitbitUserId(fitbitUserId);
+    return row ? fromRow(row) : null;
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("fitbit_connections")
+    .select("*")
+    .eq("fitbit_user_id", fitbitUserId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data ? fromRow(data as FitbitConnectionRow) : null;
+}
+
+/**
+ * Throws a friendly, user-facing error if `fitbitUserId` is already linked
+ * to a *different* participant name. Reconnecting under the *same* name is
+ * fine (e.g. a token refresh re-running the OAuth flow) and is a no-op here.
+ *
+ * Callers MUST await this before writing a connection (see
+ * app/api/fitbit/callback/route.ts and lib/fitbitMock.ts's `connectMock`) so
+ * a conflict is caught before anything is persisted — never partway through.
+ * `upsertFitbitConnection` in lib/memoryStore.ts enforces the same rule as a
+ * defense-in-depth backstop for the in-memory path; the real Supabase path's
+ * hard backstop is the migration 0004 partial unique index.
+ */
+export async function assertFitbitUserIdAvailable(
+  fitbitUserId: string | null | undefined,
+  name: string
+): Promise<void> {
+  if (!fitbitUserId) return;
+  const existing = await getConnectionByFitbitUserId(fitbitUserId);
+  if (existing && existing.name.trim().toLowerCase() !== name.trim().toLowerCase()) {
+    throw new Error(
+      `This Fitbit account is already connected under the name "${existing.name}". Each Fitbit account can only join once.`
+    );
+  }
 }
 
 export async function deleteConnection(name: string): Promise<void> {

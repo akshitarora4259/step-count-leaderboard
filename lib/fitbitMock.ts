@@ -1,4 +1,4 @@
-import { upsertConnection } from "@/lib/fitbitConnections";
+import { assertFitbitUserIdAvailable, upsertConnection } from "@/lib/fitbitConnections";
 import { upsertDailySteps } from "@/lib/steps";
 import { getWeekRange, todayISODate, toISODate } from "@/lib/week";
 
@@ -25,11 +25,33 @@ function nextISODay(iso: string): string {
   return toISODate(date);
 }
 
+/**
+ * Deterministic per-name mock Fitbit `user_id` — e.g. "Jane Doe" always maps
+ * to "mock-jane-doe". Previously every mock connection used the same literal
+ * "mock-user" id for every participant, which would have falsely tripped the
+ * fitbit_user_id uniqueness check for every mock user after the first one.
+ * Slugifying the name keeps reconnects under the same name idempotent while
+ * giving different names distinct ids, same as real distinct Fitbit accounts.
+ */
+function mockFitbitUserId(name: string): string {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-+|-+$)/g, "");
+  return `mock-${slug || "user"}`;
+}
+
 export async function connectMock(name: string, email: string | null): Promise<void> {
+  const fitbitUserId = mockFitbitUserId(name);
+  // Validate uniqueness BEFORE writing anything (same rule as the real
+  // OAuth callback flow), so a conflict never leaves a partial/stale row.
+  await assertFitbitUserIdAvailable(fitbitUserId, name);
+
   await upsertConnection({
     name,
     email,
-    fitbitUserId: "mock-user",
+    fitbitUserId,
     accessToken: "mock-access-token",
     refreshToken: "mock-refresh-token",
     // Far-future expiry — mock connections never need a real token refresh.

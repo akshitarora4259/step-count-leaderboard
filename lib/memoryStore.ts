@@ -96,6 +96,25 @@ export function upsertFitbitConnection(
 ): FitbitConnectionRow {
   const rows = connectionsStore();
   const lower = input.name.toLowerCase();
+
+  // Mirrors the `fitbit_connections_fitbit_user_id_idx` partial unique index
+  // added in supabase/migrations/0004 — a non-null fitbit_user_id can only
+  // ever belong to one participant name. The callback/mock-connect flows
+  // already check this up front (via `assertFitbitUserIdAvailable`) to
+  // produce a friendly error naming the existing owner; this is a defense-
+  // in-depth backstop so direct/bypassing callers can't silently steal a
+  // connection out from under another name either.
+  if (input.fitbit_user_id) {
+    const conflicting = rows.find(
+      (row) => row.fitbit_user_id === input.fitbit_user_id && row.name.toLowerCase() !== lower
+    );
+    if (conflicting) {
+      throw new Error(
+        `This Fitbit account is already connected under the name "${conflicting.name}". Each Fitbit account can only join once.`
+      );
+    }
+  }
+
   const existing = rows.find((row) => row.name.toLowerCase() === lower);
   const now = new Date().toISOString();
 
@@ -117,6 +136,12 @@ export function upsertFitbitConnection(
 export function getFitbitConnection(name: string): FitbitConnectionRow | null {
   const lower = name.toLowerCase();
   return connectionsStore().find((row) => row.name.toLowerCase() === lower) ?? null;
+}
+
+/** Case-sensitive lookup by Fitbit's opaque `user_id` — used to detect the
+ * same real Fitbit account being linked under a second participant name. */
+export function getFitbitConnectionByFitbitUserId(fitbitUserId: string): FitbitConnectionRow | null {
+  return connectionsStore().find((row) => row.fitbit_user_id === fitbitUserId) ?? null;
 }
 
 export function deleteFitbitConnection(name: string): void {
