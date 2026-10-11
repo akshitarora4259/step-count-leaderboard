@@ -25,8 +25,8 @@ export default function AboutPage() {
         <a href="https://aka.ms/give" target="_blank" rel="noopener noreferrer">
           donating through the Give portal
         </a>{" "}
-        or visiting the <b>IDC Give booths at B4 and B2</b>. Every action, big or small, helps
-        create a greater collective impact.
+        or visiting the <b>IDC Give booths in Hyderabad and Noida office</b>. Every action, big or
+        small, helps create a greater collective impact.
       </p>
     </section>
   );

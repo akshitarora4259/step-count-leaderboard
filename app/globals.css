@@ -415,6 +415,7 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
 .impact-banner p { font-size: 12px; }
 .impact-art { margin-left: auto; width: 190px; height: 84px; object-fit: cover; border-radius: 12px; box-shadow: var(--shadow); }
 .give-banner > div { flex: 1; }
+.home-give-banner { margin-top: 20px; }
 .give-banner p { margin: 4px 0 14px; }
 .give-button { display: inline-block; font-size: 14px; padding: 11px 22px; }
 

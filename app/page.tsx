@@ -496,15 +496,16 @@ function Home() {
         <img className="giving" src="/images/give/home-giving-vignette.webp" alt="Community giving illustration" />
       </div>
 
-      <section className="impact-banner give-banner">
+      <section className="impact-banner give-banner home-give-banner">
         <span className="impact-heart">
           <Icon name="heart" className="red-filter" />
         </span>
         <div>
           <h2>Take a Step. Make a Difference.</h2>
           <p>
-            Contribute to Microsoft Give or visit the <b>IDC Give booths at B4 and B2</b> — every
-            action, big or small, helps create a greater collective impact.
+            Contribute to Microsoft Give or visit the{" "}
+            <b>IDC Give booths in Hyderabad and Noida office</b> — every action, big or small,
+            helps create a greater collective impact.
           </p>
           <a
             className="connect-button give-button"

@@ -143,6 +143,28 @@ export default function LeaderboardPage() {
         </article>
       </div>
 
+      <section className="impact-banner give-banner">
+        <span className="impact-heart">
+          <Icon name="heart" className="red-filter" />
+        </span>
+        <div>
+          <h2>Take a Step. Make a Difference.</h2>
+          <p>
+            Contribute to Microsoft Give or visit the{" "}
+            <b>IDC Give booths in Hyderabad and Noida office</b> — every
+            action, big or small, helps create a greater collective impact.
+          </p>
+          <a
+            className="connect-button give-button"
+            href="https://aka.ms/give"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Donate on Give Portal
+          </a>
+        </div>
+      </section>
+
       <div className="leaderboard-header">
         <div>
           <h1 id="leaderboard-title">Overall Leaderboard</h1>
