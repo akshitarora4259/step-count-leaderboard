@@ -31,7 +31,7 @@ body {
   min-width: 320px;
 }
 .site-shell {
-  width: min(1180px, 100%);
+  width: 100%;
   margin: auto;
   min-height: 100vh;
   background: rgba(255, 255, 255, .72);
