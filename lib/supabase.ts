@@ -5,27 +5,32 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
  *
  * We avoid reading env vars (and constructing the client) at module load
  * time so that `next build` never hard-fails when NEXT_PUBLIC_SUPABASE_URL /
- * NEXT_PUBLIC_SUPABASE_ANON_KEY aren't set (e.g. CI build checks, or before
+ * NEXT_SUPABASE_ANON_KEY aren't set (e.g. CI build checks, or before
  * the real Supabase project is wired up). The client is only created the
  * first time it's actually needed, at request time.
+ *
+ * Note: this is deliberately NOT prefixed with NEXT_PUBLIC_ — it's only
+ * ever read server-side (Route Handlers, middleware), so it doesn't need
+ * to be inlined into the client bundle, and Supabase's current dashboard
+ * rejects "public" in custom env var names it suggests.
  */
 let client: SupabaseClient | null = null;
 
-/** True once NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY are both set. */
+/** True once NEXT_PUBLIC_SUPABASE_URL / NEXT_SUPABASE_ANON_KEY are both set. */
 export function isSupabaseConfigured(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_SUPABASE_ANON_KEY);
 }
 
 export function getSupabaseClient(): SupabaseClient {
   if (client) return client;
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const anonKey = process.env.NEXT_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
     throw new Error(
       "Missing Supabase environment variables. Set NEXT_PUBLIC_SUPABASE_URL and " +
-        "NEXT_PUBLIC_SUPABASE_ANON_KEY (see README.md)."
+        "NEXT_SUPABASE_ANON_KEY (see README.md)."
     );
   }
 

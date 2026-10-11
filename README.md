@@ -147,16 +147,17 @@ on [http://localhost:3000/leaderboard](http://localhost:3000/leaderboard).
    this is what powers the `/` sign-in flow).
 5. Go to **Project Settings → API**. You'll need three values from there:
    - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
-   - **anon public** API key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - **anon public** API key → `NEXT_SUPABASE_ANON_KEY`
    - **service_role** key → `SUPABASE_SERVICE_ROLE_KEY`
 
-> The anon key is safe to expose client-side for the `steps` table — it
-> only works through the Row Level Security policies defined in the
-> migrations. The **service role key is different**: it bypasses RLS
-> entirely. It's required server-side so API routes can write `steps` rows
-> and upload to the private `step-screenshots` bucket after they've already
-> verified the caller's session — it must **only** ever be set as a
-> server-side env var (never `NEXT_PUBLIC_...`, never sent to the browser).
+> Both the anon key and the service role key are only ever read server-side
+> (Route Handlers, middleware) in this app — neither is referenced from
+> client components — so neither needs the `NEXT_PUBLIC_` prefix. The
+> **service role key bypasses RLS entirely**: it's required so API routes
+> can write `steps` rows and upload to the private `step-screenshots`
+> bucket after they've already verified the caller's session. Treat it like
+> a secret, same as the anon key — never log either value or send it to
+> the browser.
 
 ### 2. Configure environment variables
 
@@ -168,7 +169,7 @@ cp .env.local.example .env.local
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
+NEXT_SUPABASE_ANON_KEY=your-anon-public-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
