@@ -1,7 +1,8 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getWeekRange, formatWeekPill, todayISODate } from "@/lib/week";
+import { getWeekRange, formatWeekPill, formatShortDate, todayISODate } from "@/lib/week";
+import { EVENT_START_DATE, EVENT_END_DATE } from "@/lib/constants";
 import { setStoredName, clearStoredName, getStoredName } from "@/lib/clientName";
 import { notify } from "@/lib/toastBus";
 import { Icon } from "@/components/Icon";
@@ -162,14 +163,25 @@ function Home() {
   const datePill = useMemo(() => formatWeekPill(weekRange), [weekRange]);
   const today = useMemo(() => todayISODate(), []);
 
+  // The date picker is clamped to the fixed event window (Oct 13–19, 2026)
+  // AND can never go past today — someone can backfill a missed day, but
+  // never upload for a date that hasn't happened yet.
+  const pickerMin = EVENT_START_DATE;
+  const pickerMax = today < EVENT_END_DATE ? today : EVENT_END_DATE;
+  const eventNotStarted = pickerMax < pickerMin;
+  const defaultDate = eventNotStarted ? pickerMin : pickerMax;
+
   const [auth, setAuth] = useState<AuthState>({ kind: "loading" });
   const [name, setName] = useState("");
-  const [todaySteps, setTodaySteps] = useState<number | null>(null);
+  const [selectedDate, setSelectedDate] = useState(defaultDate);
+  const [dailyMap, setDailyMap] = useState<Record<string, number>>({});
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [upload, setUpload] = useState<UploadState>({ kind: "idle" });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const recordedStepsForSelectedDate = dailyMap[selectedDate] > 0 ? dailyMap[selectedDate] : null;
 
   const loadAuthStatus = useCallback(async () => {
     try {
@@ -185,21 +197,24 @@ function Home() {
     }
   }, []);
 
-  const loadTodayStatus = useCallback(async () => {
+  const loadDailyStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/profile");
       if (!res.ok) {
-        setTodaySteps(null);
+        setDailyMap({});
         return;
       }
       const body = await res.json();
       if (body.name) setName((current) => current || body.name);
-      const todayEntry = (body.daily ?? []).find((d: { date: string; steps: number }) => d.date === today);
-      setTodaySteps(todayEntry && todayEntry.steps > 0 ? todayEntry.steps : null);
+      const map: Record<string, number> = {};
+      for (const entry of body.daily ?? []) {
+        map[entry.date] = entry.steps;
+      }
+      setDailyMap(map);
     } catch {
-      setTodaySteps(null);
+      setDailyMap({});
     }
-  }, [today]);
+  }, []);
 
   useEffect(() => {
     loadAuthStatus();
@@ -209,9 +224,9 @@ function Home() {
 
   useEffect(() => {
     if (auth.kind === "signed_in") {
-      loadTodayStatus();
+      loadDailyStatus();
     }
-  }, [auth.kind, loadTodayStatus]);
+  }, [auth.kind, loadDailyStatus]);
 
   useEffect(() => {
     if (!file) {
@@ -249,7 +264,7 @@ function Home() {
     clearStoredName();
     setName("");
     setFile(null);
-    setTodaySteps(null);
+    setDailyMap({});
     setUpload({ kind: "idle" });
     loadAuthStatus();
   }
@@ -269,14 +284,18 @@ function Home() {
     try {
       const formData = new FormData();
       formData.set("name", trimmed);
+      formData.set("entryDate", selectedDate);
       formData.set("screenshot", file);
       const res = await fetch("/api/steps/upload", { method: "POST", body: formData });
       const body = await res.json();
       if (res.ok) {
         setUpload({ kind: "success", steps: body.steps });
-        setTodaySteps(body.steps);
+        setDailyMap((current) => ({ ...current, [selectedDate]: body.steps }));
+        // Reset the file/preview (but keep the selected date and signed-in
+        // state) so the user can immediately pick another date and upload
+        // the next day's screenshot without reloading the page.
         setFile(null);
-        notify(`Detected ${body.steps.toLocaleString()} steps — recorded for today!`);
+        notify(`Detected ${body.steps.toLocaleString()} steps — recorded for ${formatShortDate(selectedDate)}!`);
       } else {
         setUpload({ kind: "error", message: body.error ?? "Upload failed." });
       }
@@ -350,10 +369,37 @@ function Home() {
                 />
               </div>
 
-              {todaySteps !== null && upload.kind !== "success" && (
+              {eventNotStarted ? (
+                <p className="privacy" style={{ color: "var(--red, #c53030)" }}>
+                  The Step Challenge starts {formatShortDate(EVENT_START_DATE)}, 2026 — come back then to
+                  upload your first screenshot!
+                </p>
+              ) : (
+                <div className="connect-form">
+                  <label htmlFor="entry-date" style={{ fontSize: "0.85rem", fontWeight: 600 }}>
+                    Which day is this screenshot for?
+                  </label>
+                  <input
+                    id="entry-date"
+                    type="date"
+                    required
+                    min={pickerMin}
+                    max={pickerMax}
+                    value={selectedDate}
+                    onChange={(e) => {
+                      setSelectedDate(e.target.value);
+                      setUpload({ kind: "idle" });
+                    }}
+                    aria-label="Entry date"
+                  />
+                </div>
+              )}
+
+              {recordedStepsForSelectedDate !== null && upload.kind !== "success" && (
                 <p className="privacy" style={{ color: "var(--green, #2f855a)" }}>
                   <Icon name="check" className="muted-filter" /> Already recorded{" "}
-                  {todaySteps.toLocaleString()} steps for today — upload again to replace it.
+                  {recordedStepsForSelectedDate.toLocaleString()} steps for {formatShortDate(selectedDate)} —
+                  upload again to replace it.
                 </p>
               )}
 
@@ -365,7 +411,7 @@ function Home() {
                 }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => !eventNotStarted && fileInputRef.current?.click()}
                 role="button"
                 tabIndex={0}
                 aria-label="Upload a screenshot of your step count"
@@ -374,9 +420,10 @@ function Home() {
                   borderRadius: 12,
                   padding: "1.5rem",
                   textAlign: "center",
-                  cursor: "pointer",
+                  cursor: eventNotStarted ? "not-allowed" : "pointer",
                   marginTop: 12,
                   background: dragOver ? "rgba(43,108,176,0.06)" : "rgba(255,255,255,0.4)",
+                  opacity: eventNotStarted ? 0.5 : 1,
                 }}
               >
                 <input
@@ -384,6 +431,7 @@ function Home() {
                   type="file"
                   accept="image/*"
                   hidden
+                  disabled={eventNotStarted}
                   onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
                 />
                 {previewUrl ? (
@@ -396,7 +444,8 @@ function Home() {
                   <>
                     <Icon name="camera" className="navy-filter" />
                     <p style={{ margin: "0.5rem 0 0" }}>
-                      Drag & drop today&apos;s step-count screenshot here, or click to choose a file
+                      Drag & drop your step-count screenshot for {formatShortDate(selectedDate)} here, or
+                      click to choose a file
                     </p>
                   </>
                 )}
@@ -405,7 +454,7 @@ function Home() {
               {upload.kind === "success" && (
                 <p className="privacy" style={{ color: "var(--green, #2f855a)" }}>
                   <Icon name="check" className="muted-filter" /> Detected{" "}
-                  {upload.steps.toLocaleString()} steps ✅ Recorded for today.
+                  {upload.steps.toLocaleString()} steps ✅ Recorded for {formatShortDate(selectedDate)}.
                 </p>
               )}
               {upload.kind === "error" && (
@@ -418,7 +467,7 @@ function Home() {
                 type="button"
                 className="connect-button"
                 onClick={handleUpload}
-                disabled={upload.kind === "uploading" || !file}
+                disabled={upload.kind === "uploading" || !file || eventNotStarted}
               >
                 <Icon name="camera" className="white-filter" />{" "}
                 {upload.kind === "uploading" ? "Reading screenshot…" : "Upload & Detect Steps"}

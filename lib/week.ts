@@ -70,6 +70,12 @@ function ordinal(day: number): string {
   return `${day}th`;
 }
 
+/** Formats a single ISO date (YYYY-MM-DD) as a short "Oct 14" style label. */
+export function formatShortDate(isoDate: string): string {
+  const [, month, day] = isoDate.split("-").map(Number);
+  return `${MONTH_LABELS[month - 1]} ${day}`;
+}
+
 /**
  * Formats a week range as the "13th - 19th Oct, 2026" style date pill text
  * used across the Home/Leaderboard headers. Handles the rare case of a week

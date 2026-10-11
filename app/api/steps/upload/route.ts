@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentIdentity } from "@/lib/identity";
-import { extractStepCountFromImage } from "@/lib/ocr";
+import { isValidEntryDate } from "@/lib/eventWindow";
+import { extractStepsAndDateFromImage } from "@/lib/ocr";
 import { deleteScreenshot, uploadScreenshot } from "@/lib/screenshotStorage";
 import { upsertDailySteps } from "@/lib/steps";
-import { todayISODate } from "@/lib/week";
+import { formatShortDate, todayISODate } from "@/lib/week";
 
 export const runtime = "nodejs";
 // Vercel Hobby defaults to a 10s function timeout; OCR (worker init +
@@ -17,14 +18,22 @@ const MAX_FILE_BYTES = 8 * 1024 * 1024; // 8MB — generous for a phone screensh
 /**
  * Daily screenshot upload + server-side OCR.
  *
- * Always submits for *today's* date (see requirement: no date picker — this
- * is a daily capture). One upload per day per user: re-uploading the same
- * day overwrites that day's screenshot + step count (see migration 0005's
- * unique (user_id, entry_date) index, used as the upsert conflict target).
+ * The caller picks which event date (Oct 13–19, 2026) they're uploading for
+ * — this lets someone backfill a day they missed, not just "today". One
+ * upload per (user, date): re-uploading the same date overwrites that day's
+ * screenshot + step count (see migration 0005's unique (user_id, entry_date)
+ * index, used as the upsert conflict target).
  *
- * Atomicity: if OCR can't find a plausible step count, nothing is written —
- * no DB row, and any uploaded file is deleted again. Success always means
- * the screenshot and the DB row are persisted together.
+ * The step count is *always* OCR-only (never typed in) — but if the
+ * screenshot itself shows a date, that's cross-checked against the
+ * user-selected date so a mismatched upload (wrong day's screenshot) is
+ * rejected rather than silently recorded under the wrong date.
+ *
+ * Atomicity: if OCR can't find a plausible step count, the date is outside
+ * the event window, or the screenshot's own date disagrees with the
+ * user-selected one, nothing is written — no DB row, and any uploaded file
+ * is deleted again. Success always means the screenshot and the DB row are
+ * persisted together, for the selected date.
  */
 export async function POST(request: NextRequest) {
   const identity = await getCurrentIdentity();
@@ -40,6 +49,7 @@ export async function POST(request: NextRequest) {
   }
 
   const name = String(formData.get("name") ?? "").trim();
+  const entryDate = String(formData.get("entryDate") ?? "").trim();
   const file = formData.get("screenshot");
 
   if (!name) {
@@ -58,12 +68,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Image is too large (max 8MB)." }, { status: 400 });
   }
 
+  const today = todayISODate();
+  const dateCheck = isValidEntryDate(entryDate, today);
+  if (!dateCheck.ok) {
+    return NextResponse.json({ error: dateCheck.error }, { status: 400 });
+  }
+
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
-  let steps: number | null;
+  let ocr: { steps: number | null; detectedDate: string | null };
   try {
-    steps = await extractStepCountFromImage(buffer);
+    ocr = await extractStepsAndDateFromImage(buffer);
   } catch (err) {
     const message = err instanceof Error ? err.message : "OCR failed.";
     return NextResponse.json(
@@ -72,7 +88,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (steps === null) {
+  if (ocr.steps === null) {
     return NextResponse.json(
       {
         error:
@@ -82,7 +98,27 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const entryDate = todayISODate();
+  if (ocr.detectedDate) {
+    const screenshotDateCheck = isValidEntryDate(ocr.detectedDate, today);
+    if (!screenshotDateCheck.ok) {
+      return NextResponse.json(
+        {
+          error: `This screenshot is dated ${formatShortDate(ocr.detectedDate)}, which is outside the event window. Please upload a screenshot from the event week (Oct 13–19).`,
+        },
+        { status: 422 }
+      );
+    }
+    if (ocr.detectedDate !== entryDate) {
+      return NextResponse.json(
+        {
+          error: `This screenshot looks like it's from ${formatShortDate(ocr.detectedDate)}, but you selected ${formatShortDate(entryDate)} — please re-check and retry.`,
+        },
+        { status: 422 }
+      );
+    }
+  }
+
+  const steps = ocr.steps;
 
   // Upload first, then write the DB row — if the DB write fails, roll back
   // the upload so no orphaned file is left behind (success means both are

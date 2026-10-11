@@ -8,3 +8,14 @@
  * computed value — update it here if the real event goal changes.
  */
 export const COMMUNITY_IMPACT_GOAL_USD = 50_000;
+
+/**
+ * The 2026 Step Challenge's fixed event window: Mon Oct 13 – Sun Oct 19,
+ * 2026 (inclusive). Screenshot uploads are only accepted for dates in this
+ * range (see lib/eventWindow.ts) — this is a hardcoded one-off window for
+ * this specific event, deliberately separate from lib/week.ts's generic
+ * "current week" math (which computes an arbitrary Mon–Sun range for any
+ * reference date and is used purely for leaderboard aggregation).
+ */
+export const EVENT_START_DATE = "2026-10-13";
+export const EVENT_END_DATE = "2026-10-19";
