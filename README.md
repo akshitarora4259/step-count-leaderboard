@@ -178,12 +178,33 @@ per [mock mode](#trying-it-locally-with-zero-setup-mock-mode) — the app is
 still fully usable locally without any of them set, including OCR, which
 needs no credentials at all.
 
+#### Event window (optional)
+
+```env
+NEXT_PUBLIC_EVENT_START_DATE=2026-10-13
+NEXT_PUBLIC_EVENT_END_DATE=2026-10-19
+```
+
+These control the inclusive date range that screenshot uploads are
+validated against and that the leaderboard/profile pages aggregate and
+display. Both are optional — if unset, they default to the dates shown
+above. To reuse this app for a different event, set both to your new
+`YYYY-MM-DD` dates (in Vercel's **Project Settings → Environment
+Variables**, or `.env.local` for local dev) and redeploy — no code change
+needed. They must use the `NEXT_PUBLIC_` prefix (same as the Supabase URL/
+anon key above) so Next.js inlines them for the client-side date pickers
+and date pills, not just server-side validation. If set but invalid (bad
+format, or start date after end date), the app logs a warning and falls
+back to the defaults rather than failing to build or crashing.
+
 ### 3. Deploy to Vercel for free
 
 1. Push this repo to GitHub (or GitLab/Bitbucket).
 2. Go to [vercel.com/new](https://vercel.com/new) and import the repo.
 3. In the import screen (or afterwards under **Project Settings →
-   Environment Variables**), add the three Supabase variables listed above.
+   Environment Variables**), add the three Supabase variables listed above
+   (and optionally the two event-window variables, if not using the
+   defaults).
 4. Click **Deploy**. Vercel will build and host it on a free
    `your-project.vercel.app` URL.
 
