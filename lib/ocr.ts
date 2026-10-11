@@ -1,5 +1,14 @@
+import path from "path";
 import { createWorker } from "tesseract.js";
 import { EVENT_START_DATE } from "./constants";
+
+// Bundled locally (see /tessdata) so OCR never has to fetch the ~11MB
+// eng.traineddata.gz from jsdelivr's CDN at runtime — on Vercel, every cold
+// serverless invocation starts with an empty filesystem, so that download
+// was happening on every cold start and routinely blew past the function's
+// time limit (504s). cacheMethod "none" skips tesseract.js's own read/write
+// cache attempt, which is pointless here since the data is already local.
+const LANG_PATH = path.join(process.cwd(), "tessdata");
 
 /** Sanity bounds mirroring the `steps` table's check constraint (0–100,000). */
 export const MIN_STEPS = 0;
@@ -266,7 +275,7 @@ export type OcrResult = {
  * serverless/Vercel deployment (no long-lived process to manage).
  */
 export async function extractStepsAndDateFromImage(buffer: Buffer): Promise<OcrResult> {
-  const worker = await createWorker("eng");
+  const worker = await createWorker("eng", 1, { langPath: LANG_PATH, gzip: true, cacheMethod: "none" });
   try {
     const {
       data: { text },
