@@ -13,6 +13,11 @@ type Status =
   | { kind: "not_connected" }
   | { kind: "connected"; isMock: boolean };
 
+type AuthState =
+  | { kind: "loading" }
+  | { kind: "signed_out"; mockMode: boolean }
+  | { kind: "signed_in"; email: string; mockMode: boolean };
+
 const HOW_IT_WORKS = [
   {
     number: "1",
@@ -40,30 +45,139 @@ const HOW_IT_WORKS = [
   },
 ] as const;
 
+/**
+ * Email-OTP login gate. Must be verified before the name + Connect Fitbit
+ * UI is shown — this is what makes `user_id` (not a self-reported name) the
+ * real identity behind every Fitbit connect/disconnect/sync action.
+ *
+ * In mock mode (no Supabase project configured), there's no real email
+ * delivery — "Continue (demo mode)" logs the typed email in immediately,
+ * mirroring the existing Fitbit mock-connect pattern for local dev.
+ */
+function AuthGate({ auth, onSignedIn }: { auth: AuthState; onSignedIn: (email: string) => void }) {
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSendCode() {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      notify("Please enter your email first.");
+      return;
+    }
+    if (auth.kind === "signed_out" && auth.mockMode) {
+      // Mock mode: skip the real OTP round trip entirely.
+      await verify(trimmed, "000000");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed }),
+      });
+      const body = await res.json();
+      if (res.ok) {
+        setCodeSent(true);
+        notify("Code sent! Check your email.");
+      } else {
+        notify(body.error ?? "Failed to send code.");
+      }
+    } catch {
+      notify("Network error — please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function verify(trimmedEmail: string, trimmedCode: string) {
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmedEmail, code: trimmedCode }),
+      });
+      const body = await res.json();
+      if (res.ok) {
+        onSignedIn(trimmedEmail);
+      } else {
+        notify(body.error ?? "Invalid or expired code.");
+      }
+    } catch {
+      notify("Network error — please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleVerify() {
+    const trimmed = code.trim();
+    if (!trimmed) {
+      notify("Please enter the code we sent you.");
+      return;
+    }
+    verify(email.trim(), trimmed);
+  }
+
+  const isMock = auth.kind === "signed_out" && auth.mockMode;
+
+  return (
+    <div className="connect-form">
+      <input
+        type="email"
+        required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="Work email"
+        aria-label="Work email"
+        disabled={codeSent}
+      />
+      {!isMock && codeSent && (
+        <input
+          type="text"
+          inputMode="numeric"
+          maxLength={6}
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="6-digit code"
+          aria-label="Verification code"
+        />
+      )}
+      {!codeSent || isMock ? (
+        <button type="button" className="connect-button" onClick={handleSendCode} disabled={submitting}>
+          {submitting ? "Please wait…" : isMock ? "Continue (demo mode)" : "Send code"}
+        </button>
+      ) : (
+        <button type="button" className="connect-button" onClick={handleVerify} disabled={submitting}>
+          {submitting ? "Verifying…" : "Verify"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function Home() {
   const searchParams = useSearchParams();
   const weekRange = useMemo(() => getWeekRange(), []);
   const datePill = useMemo(() => formatWeekPill(weekRange), [weekRange]);
 
+  const [auth, setAuth] = useState<AuthState>({ kind: "loading" });
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>({ kind: "unknown" });
   const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
 
-  const checkStatus = useCallback(async (candidate: string) => {
-    const trimmed = candidate.trim();
-    if (!trimmed) {
-      setStatus({ kind: "unknown" });
-      return;
-    }
+  const checkStatus = useCallback(async () => {
     setStatus({ kind: "checking" });
     try {
-      const res = await fetch(`/api/fitbit/status?name=${encodeURIComponent(trimmed)}`);
+      const res = await fetch("/api/fitbit/status");
       const body = await res.json();
       if (body.connected) {
         setStatus({ kind: "connected", isMock: Boolean(body.isMock) });
-        setStoredName(trimmed);
+        if (body.name) setStoredName(body.name);
       } else {
         setStatus({ kind: "not_connected" });
       }
@@ -72,12 +186,25 @@ function Home() {
     }
   }, []);
 
-  useEffect(() => {
-    const stored = getStoredName();
-    if (stored) {
-      setName(stored);
-      checkStatus(stored);
+  const loadAuthStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/status");
+      const body = await res.json();
+      if (body.user) {
+        setAuth({ kind: "signed_in", email: body.user.email, mockMode: Boolean(body.mockMode) });
+      } else {
+        setAuth({ kind: "signed_out", mockMode: Boolean(body.mockMode) });
+      }
+    } catch {
+      setAuth({ kind: "signed_out", mockMode: false });
     }
+  }, []);
+
+  useEffect(() => {
+    loadAuthStatus();
+
+    const stored = getStoredName();
+    if (stored) setName(stored);
 
     const paramName = searchParams.get("name");
     const connected = searchParams.get("connected");
@@ -85,13 +212,7 @@ function Home() {
     const err = searchParams.get("fitbit_error");
     const warning = searchParams.get("fitbit_warning");
 
-    if (paramName) {
-      setName(paramName);
-      checkStatus(paramName);
-    }
-    if (connected === "1" && paramName) {
-      setStoredName(paramName);
-    }
+    if (paramName) setName(paramName);
     if (connected === "1") {
       notify(
         warning ??
@@ -106,6 +227,12 @@ function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (auth.kind === "signed_in") {
+      checkStatus();
+    }
+  }, [auth.kind, checkStatus]);
+
   function handleConnect() {
     const trimmed = name.trim();
     if (!trimmed) {
@@ -113,20 +240,13 @@ function Home() {
       return;
     }
     const params = new URLSearchParams({ name: trimmed });
-    if (email.trim()) params.set("email", email.trim());
     window.location.href = `/api/fitbit/connect?${params.toString()}`;
   }
 
   async function handleDisconnect() {
-    const trimmed = name.trim();
-    if (!trimmed) return;
     setDisconnecting(true);
     try {
-      const res = await fetch("/api/fitbit/disconnect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: trimmed }),
-      });
+      const res = await fetch("/api/fitbit/disconnect", { method: "POST" });
       const body = await res.json();
       if (res.ok) {
         setStatus({ kind: "not_connected" });
@@ -143,11 +263,9 @@ function Home() {
   }
 
   async function handleSyncNow() {
-    const trimmed = name.trim();
-    if (!trimmed) return;
     setSyncing(true);
     try {
-      const res = await fetch(`/api/fitbit/sync?name=${encodeURIComponent(trimmed)}`);
+      const res = await fetch("/api/fitbit/sync?self=1");
       const body = await res.json();
       if (res.ok) {
         notify("Synced! Check the leaderboard for your latest steps.");
@@ -162,7 +280,20 @@ function Home() {
     }
   }
 
+  async function handleSignOut() {
+    try {
+      await fetch("/api/auth/signout", { method: "POST" });
+    } catch {
+      // Ignore — we still clear local UI state below either way.
+    }
+    clearStoredName();
+    setStatus({ kind: "unknown" });
+    setName("");
+    loadAuthStatus();
+  }
+
   const isConnected = status.kind === "connected";
+  const isSignedIn = auth.kind === "signed_in";
 
   return (
     <section id="home" className="view active-view" aria-labelledby="home-title">
@@ -191,48 +322,75 @@ function Home() {
             healthier, kinder world. Every step you take contributes to real impact.
           </p>
 
-          {!isConnected && (
-            <div className="connect-form">
-              <input
-                type="text"
-                required
-                maxLength={100}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onBlur={(e) => checkStatus(e.target.value)}
-                placeholder="Your name"
-                aria-label="Your name"
-              />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email (optional)"
-                aria-label="Email (optional)"
-              />
-            </div>
-          )}
-
-          {isConnected ? (
-            <div className="connect-form">
-              <button type="button" className="connect-button" onClick={handleSyncNow} disabled={syncing}>
-                <Icon name="fitbit" className="fitbit-dots white-filter" />{" "}
-                {syncing ? "Syncing…" : "Sync Now"} <Icon name="sync" className="white-filter" />
-              </button>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={handleDisconnect}
-                disabled={disconnecting}
-              >
-                {disconnecting ? "Disconnecting…" : "Disconnect"}
-              </button>
-            </div>
+          {auth.kind === "loading" ? null : !isSignedIn ? (
+            <AuthGate auth={auth} onSignedIn={() => loadAuthStatus()} />
           ) : (
-            <button id="connectButton" type="button" className="connect-button" onClick={handleConnect}>
-              <Icon name="fitbit" className="fitbit-dots white-filter" />{" "}
-              {status.kind === "checking" ? "Checking…" : "Connect Fitbit"} <span>›</span>
-            </button>
+            <>
+              <p className="privacy" style={{ marginBottom: 4 }}>
+                Signed in as <strong>{auth.email}</strong>{" "}
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--blue, #2b6cb0)",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                    padding: 0,
+                    font: "inherit",
+                  }}
+                >
+                  Sign out
+                </button>
+              </p>
+
+              {!isConnected && (
+                <div className="connect-form">
+                  <input
+                    type="text"
+                    required
+                    maxLength={100}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Your name"
+                    aria-label="Your name"
+                  />
+                </div>
+              )}
+
+              {isConnected ? (
+                <div className="connect-form">
+                  <button
+                    type="button"
+                    className="connect-button"
+                    onClick={handleSyncNow}
+                    disabled={syncing}
+                  >
+                    <Icon name="fitbit" className="fitbit-dots white-filter" />{" "}
+                    {syncing ? "Syncing…" : "Sync Now"} <Icon name="sync" className="white-filter" />
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleDisconnect}
+                    disabled={disconnecting}
+                  >
+                    {disconnecting ? "Disconnecting…" : "Disconnect"}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  id="connectButton"
+                  type="button"
+                  className="connect-button"
+                  onClick={handleConnect}
+                >
+                  <Icon name="fitbit" className="fitbit-dots white-filter" />{" "}
+                  {status.kind === "checking" ? "Checking…" : "Connect Fitbit"} <span>›</span>
+                </button>
+              )}
+            </>
           )}
 
           <p className="privacy">

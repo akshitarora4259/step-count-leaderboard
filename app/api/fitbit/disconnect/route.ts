@@ -1,38 +1,26 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { revokeFitbitToken } from "@/lib/fitbit";
-import { deleteConnection, getConnection } from "@/lib/fitbitConnections";
-import { deleteStepsForName } from "@/lib/steps";
-
-const MAX_NAME_LENGTH = 100;
+import { deleteConnectionByUserId, getConnectionByUserId } from "@/lib/fitbitConnections";
+import { deleteStepsForUserId } from "@/lib/steps";
+import { getCurrentIdentity } from "@/lib/identity";
 
 /**
- * Disconnects a participant: revokes their Fitbit token (best-effort, real
- * connections only), then deletes both the stored connection and every step
- * entry it produced. This is intentionally thorough — participants should
- * be able to trust that "Disconnect" really does remove their data, since
- * that's what makes the integration feel safe to opt into in the first
- * place.
+ * Disconnects the signed-in participant: revokes their Fitbit token
+ * (best-effort, real connections only), then deletes both the stored
+ * connection and every step entry it produced.
+ *
+ * Identity comes from the session (see lib/identity.ts), NOT a `name` field
+ * in the request body — previously any client could POST `{ name: "someone
+ * else" }` here and delete that person's data. Returns 401 if not signed in.
  */
-export async function POST(request: NextRequest) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+export async function POST() {
+  const identity = await getCurrentIdentity();
+  if (!identity) {
+    return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
   }
-
-  const { name } = (body ?? {}) as Record<string, unknown>;
-  if (typeof name !== "string" || name.trim().length === 0) {
-    return NextResponse.json({ error: "Name is required." }, { status: 400 });
-  }
-  if (name.trim().length > MAX_NAME_LENGTH) {
-    return NextResponse.json({ error: "Name is too long." }, { status: 400 });
-  }
-
-  const trimmedName = name.trim();
 
   try {
-    const conn = await getConnection(trimmedName);
+    const conn = await getConnectionByUserId(identity.userId);
     if (conn && !conn.isMock) {
       await revokeFitbitToken(conn.accessToken).catch(() => {
         // Best-effort — even if Fitbit's revoke call fails (e.g. already
@@ -40,8 +28,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    await deleteConnection(trimmedName);
-    await deleteStepsForName(trimmedName);
+    await deleteConnectionByUserId(identity.userId);
+    await deleteStepsForUserId(identity.userId);
 
     return NextResponse.json({ ok: true });
   } catch (err) {

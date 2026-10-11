@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { exchangeCodeForToken, getFitbitRedirectUri } from "@/lib/fitbit";
 import { assertFitbitUserIdAvailable, upsertConnection } from "@/lib/fitbitConnections";
-import { syncByName } from "@/lib/fitbitSync";
+import { syncByUserId } from "@/lib/fitbitSync";
+import { getCurrentIdentity } from "@/lib/identity";
 
 /**
  * Fitbit redirects here after the user authorizes (or denies) access. We
  * exchange the authorization `code` for tokens, persist the (encrypted)
  * connection, kick off an initial sync so the leaderboard has data right
  * away, then redirect back to the submission form with a friendly banner.
+ *
+ * Identity comes from the current session (re-checked here, not just
+ * trusted from the OAuth `state`), with `state.userId` cross-checked as a
+ * defense-in-depth guard against a forged/replayed `state` value.
  */
 export async function GET(request: NextRequest) {
   const origin = request.nextUrl.origin;
@@ -24,17 +29,24 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const identity = await getCurrentIdentity();
+  if (!identity) {
+    return NextResponse.redirect(
+      `${origin}/?fitbit_error=${encodeURIComponent("Your session expired — please sign in and try again.")}`
+    );
+  }
+
   let name: string;
-  let email: string | null;
   try {
     const decoded = JSON.parse(Buffer.from(state, "base64url").toString("utf8"));
     name = String(decoded.name ?? "").trim();
-    email = decoded.email ? String(decoded.email) : null;
     if (!name) throw new Error("Missing name in state.");
-  } catch {
-    return NextResponse.redirect(
-      `${origin}/?fitbit_error=${encodeURIComponent("Invalid OAuth state.")}`
-    );
+    if (decoded.userId && decoded.userId !== identity.userId) {
+      throw new Error("Session mismatch — please retry connecting.");
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Invalid OAuth state.";
+    return NextResponse.redirect(`${origin}/?fitbit_error=${encodeURIComponent(message)}`);
   }
 
   try {
@@ -42,14 +54,15 @@ export async function GET(request: NextRequest) {
     const token = await exchangeCodeForToken(code, redirectUri);
 
     // Validate the fitbit_user_id uniqueness rule BEFORE writing anything —
-    // if this same real Fitbit account is already linked under a different
-    // name, bail out here so no partial/stale row is ever created and the
-    // user can always retry cleanly (e.g. disconnect the other name first).
-    await assertFitbitUserIdAvailable(token.user_id, name);
+    // if this same real Fitbit account is already linked to a different
+    // signed-in identity, bail out here so no partial/stale row is ever
+    // created and the user can always retry cleanly.
+    await assertFitbitUserIdAvailable(token.user_id, identity.userId);
 
     await upsertConnection({
       name,
-      email,
+      email: identity.email,
+      userId: identity.userId,
       fitbitUserId: token.user_id,
       accessToken: token.access_token,
       refreshToken: token.refresh_token,
@@ -72,7 +85,7 @@ export async function GET(request: NextRequest) {
   // warning instead of a hard error.
   let syncWarning: string | null = null;
   try {
-    await syncByName(name);
+    await syncByUserId(identity.userId);
   } catch (err) {
     console.error(`Initial Fitbit sync after connect failed for "${name}":`, err);
     syncWarning = "Connected! Step sync will catch up shortly.";

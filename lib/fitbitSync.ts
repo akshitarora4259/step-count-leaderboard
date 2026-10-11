@@ -1,6 +1,6 @@
 import { fetchStepsForRange, refreshFitbitToken } from "@/lib/fitbit";
 import {
-  getConnection,
+  getConnectionByUserId,
   listConnections,
   upsertConnection,
   type DecryptedConnection,
@@ -19,6 +19,7 @@ const REFRESH_SKEW_MS = 5 * 60 * 1000;
  */
 export async function syncParticipant(conn: DecryptedConnection): Promise<void> {
   if (conn.isMock) return;
+  if (!conn.userId) return;
 
   const { startDate, endDate } = getWeekRange();
   const today = todayISODate();
@@ -32,6 +33,7 @@ export async function syncParticipant(conn: DecryptedConnection): Promise<void> 
     await upsertConnection({
       name: conn.name,
       email: conn.email,
+      userId: conn.userId,
       fitbitUserId: conn.fitbitUserId,
       accessToken: refreshed.access_token,
       refreshToken: refreshed.refresh_token,
@@ -45,6 +47,7 @@ export async function syncParticipant(conn: DecryptedConnection): Promise<void> 
     await upsertDailySteps({
       name: conn.name,
       email: conn.email,
+      userId: conn.userId,
       steps: day.steps,
       entry_date: day.date,
     });
@@ -53,16 +56,16 @@ export async function syncParticipant(conn: DecryptedConnection): Promise<void> 
 
 export type SyncResult = { name: string; ok: boolean; error?: string };
 
-export async function syncByName(name: string): Promise<SyncResult> {
-  const conn = await getConnection(name);
+export async function syncByUserId(userId: string): Promise<SyncResult> {
+  const conn = await getConnectionByUserId(userId);
   if (!conn) {
-    return { name, ok: false, error: "Not connected." };
+    return { name: "", ok: false, error: "Not connected." };
   }
   try {
     await syncParticipant(conn);
-    return { name, ok: true };
+    return { name: conn.name, ok: true };
   } catch (err) {
-    return { name, ok: false, error: err instanceof Error ? err.message : "Sync failed." };
+    return { name: conn.name, ok: false, error: err instanceof Error ? err.message : "Sync failed." };
   }
 }
 

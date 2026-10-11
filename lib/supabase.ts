@@ -75,6 +75,8 @@ export type StepEntry = {
   id: string;
   name: string;
   email: string | null;
+  /** Owning Supabase Auth user — the real authorization boundary (see lib/identity.ts). */
+  user_id: string | null;
   steps: number;
   entry_date: string;
   created_at: string;
@@ -89,6 +91,8 @@ export type FitbitConnectionRow = {
   id: string;
   name: string;
   email: string | null;
+  /** Owning Supabase Auth user — the real authorization boundary (see lib/identity.ts). */
+  user_id: string | null;
   fitbit_user_id: string | null;
   access_token: string;
   refresh_token: string;

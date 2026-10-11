@@ -44,19 +44,21 @@ function randomId(): string {
 // Steps
 // ---------------------------------------------------------------------------
 
-/** Insert a new entry, or update the existing one for the same (name, entry_date). */
+/** Insert a new entry, or update the existing one for the same (user_id, entry_date). */
 export function upsertStepEntry(input: {
   name: string;
   email: string | null;
+  userId: string;
   steps: number;
   entry_date: string;
 }): StepEntry {
   const rows = stepsStore();
   const existing = rows.find(
-    (row) => row.name === input.name && row.entry_date === input.entry_date
+    (row) => row.user_id === input.userId && row.entry_date === input.entry_date
   );
 
   if (existing) {
+    existing.name = input.name;
     existing.email = input.email;
     existing.steps = input.steps;
     return existing;
@@ -66,6 +68,7 @@ export function upsertStepEntry(input: {
     id: randomId(),
     name: input.name,
     email: input.email,
+    user_id: input.userId,
     steps: input.steps,
     entry_date: input.entry_date,
     created_at: new Date().toISOString(),
@@ -80,10 +83,9 @@ export function getStepEntriesInRange(startDate: string, endDate: string): StepE
 }
 
 /** Removes all step entries for a participant (used on Fitbit disconnect). */
-export function deleteStepEntriesForName(name: string): void {
+export function deleteStepEntriesForUserId(userId: string): void {
   const rows = stepsStore();
-  const lower = name.toLowerCase();
-  const remaining = rows.filter((row) => row.name.toLowerCase() !== lower);
+  const remaining = rows.filter((row) => row.user_id !== userId);
   globalThis.__stepCountMemoryStore = remaining;
 }
 
@@ -95,18 +97,17 @@ export function upsertFitbitConnection(
   input: Omit<FitbitConnectionRow, "id" | "connected_at" | "updated_at">
 ): FitbitConnectionRow {
   const rows = connectionsStore();
-  const lower = input.name.toLowerCase();
 
   // Mirrors the `fitbit_connections_fitbit_user_id_idx` partial unique index
   // added in supabase/migrations/0004 — a non-null fitbit_user_id can only
-  // ever belong to one participant name. The callback/mock-connect flows
-  // already check this up front (via `assertFitbitUserIdAvailable`) to
+  // ever belong to one authenticated identity. The callback/mock-connect
+  // flows already check this up front (via `assertFitbitUserIdAvailable`) to
   // produce a friendly error naming the existing owner; this is a defense-
   // in-depth backstop so direct/bypassing callers can't silently steal a
-  // connection out from under another name either.
+  // connection out from under another identity either.
   if (input.fitbit_user_id) {
     const conflicting = rows.find(
-      (row) => row.fitbit_user_id === input.fitbit_user_id && row.name.toLowerCase() !== lower
+      (row) => row.fitbit_user_id === input.fitbit_user_id && row.user_id !== input.user_id
     );
     if (conflicting) {
       throw new Error(
@@ -115,7 +116,7 @@ export function upsertFitbitConnection(
     }
   }
 
-  const existing = rows.find((row) => row.name.toLowerCase() === lower);
+  const existing = rows.find((row) => row.user_id === input.user_id);
   const now = new Date().toISOString();
 
   if (existing) {
@@ -133,21 +134,20 @@ export function upsertFitbitConnection(
   return entry;
 }
 
-export function getFitbitConnection(name: string): FitbitConnectionRow | null {
-  const lower = name.toLowerCase();
-  return connectionsStore().find((row) => row.name.toLowerCase() === lower) ?? null;
+/** The signed-in caller's own connection, if any. */
+export function getFitbitConnectionByUserId(userId: string): FitbitConnectionRow | null {
+  return connectionsStore().find((row) => row.user_id === userId) ?? null;
 }
 
 /** Case-sensitive lookup by Fitbit's opaque `user_id` — used to detect the
- * same real Fitbit account being linked under a second participant name. */
+ * same real Fitbit account being linked under a second authenticated identity. */
 export function getFitbitConnectionByFitbitUserId(fitbitUserId: string): FitbitConnectionRow | null {
   return connectionsStore().find((row) => row.fitbit_user_id === fitbitUserId) ?? null;
 }
 
-export function deleteFitbitConnection(name: string): void {
-  const lower = name.toLowerCase();
+export function deleteFitbitConnectionByUserId(userId: string): void {
   globalThis.__fitbitConnectionsMemoryStore = connectionsStore().filter(
-    (row) => row.name.toLowerCase() !== lower
+    (row) => row.user_id !== userId
   );
 }
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { clearStoredName, getStoredName } from "@/lib/clientName";
+import { clearStoredName } from "@/lib/clientName";
 import { formatCompactNumber, formatNumber } from "@/lib/format";
 import { todayISODate } from "@/lib/week";
 import { notify } from "@/lib/toastBus";
@@ -11,8 +11,8 @@ import { Icon } from "@/components/Icon";
 
 type State =
   | { kind: "loading" }
-  | { kind: "no_name" }
-  | { kind: "not_connected"; name: string }
+  | { kind: "signed_out" }
+  | { kind: "not_connected" }
   | { kind: "connected"; name: string; isMock: boolean; profile: ProfileResponse };
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -30,25 +30,31 @@ export default function MePage() {
   const [disconnecting, setDisconnecting] = useState(false);
 
   const load = useCallback(async () => {
-    const name = getStoredName();
-    if (!name) {
-      setState({ kind: "no_name" });
-      return;
-    }
     try {
-      const [statusRes, profileRes] = await Promise.all([
-        fetch(`/api/fitbit/status?name=${encodeURIComponent(name)}`),
-        fetch(`/api/profile?name=${encodeURIComponent(name)}`),
-      ]);
+      const statusRes = await fetch("/api/fitbit/status");
       const statusBody = await statusRes.json();
+      if (!statusBody.signedIn) {
+        setState({ kind: "signed_out" });
+        return;
+      }
       if (!statusBody.connected) {
-        setState({ kind: "not_connected", name });
+        setState({ kind: "not_connected" });
+        return;
+      }
+      const profileRes = await fetch("/api/profile");
+      if (!profileRes.ok) {
+        setState({ kind: "not_connected" });
         return;
       }
       const profile: ProfileResponse = await profileRes.json();
-      setState({ kind: "connected", name, isMock: Boolean(statusBody.isMock), profile });
+      setState({
+        kind: "connected",
+        name: statusBody.name ?? profile.name,
+        isMock: Boolean(statusBody.isMock),
+        profile,
+      });
     } catch {
-      setState({ kind: "not_connected", name });
+      setState({ kind: "not_connected" });
     }
   }, []);
 
@@ -56,21 +62,17 @@ export default function MePage() {
     load();
   }, [load]);
 
-  async function handleDisconnect(name: string) {
+  async function handleDisconnect() {
     setDisconnecting(true);
     try {
-      await fetch("/api/fitbit/disconnect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
+      await fetch("/api/fitbit/disconnect", { method: "POST" });
       notify("Disconnected — your synced step data has been removed.");
     } catch {
       notify("Network error — please try again.");
     } finally {
       clearStoredName();
       setDisconnecting(false);
-      setState({ kind: "no_name" });
+      setState({ kind: "not_connected" });
     }
   }
 
@@ -82,17 +84,17 @@ export default function MePage() {
     );
   }
 
-  if (state.kind === "no_name" || state.kind === "not_connected") {
+  if (state.kind === "signed_out" || state.kind === "not_connected") {
     return (
       <section id="connected" className="view active-view">
         <div className="empty-state">
           <p>
             {state.kind === "not_connected"
-              ? `${state.name} isn't connected to Fitbit yet.`
-              : "Connect your Fitbit to see your own stats and weekly chart here."}
+              ? "You're signed in, but not connected to Fitbit yet."
+              : "Sign in and connect your Fitbit to see your own stats and weekly chart here."}
           </p>
           <Link href="/" className="connect-button" style={{ display: "inline-block", marginTop: 16 }}>
-            Connect Fitbit ›
+            {state.kind === "not_connected" ? "Connect Fitbit ›" : "Go to Sign In ›"}
           </Link>
         </div>
       </section>
@@ -140,7 +142,7 @@ export default function MePage() {
         <button
           type="button"
           className="disconnect-button"
-          onClick={() => handleDisconnect(name)}
+          onClick={() => handleDisconnect()}
           disabled={disconnecting}
         >
           {disconnecting ? "Disconnecting…" : "Disconnect"}

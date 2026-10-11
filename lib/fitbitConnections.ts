@@ -5,9 +5,9 @@ import {
 } from "@/lib/supabase";
 import { decryptToken, encryptToken } from "@/lib/crypto";
 import {
-  deleteFitbitConnection as deleteMemoryConnection,
-  getFitbitConnection as getMemoryConnection,
+  deleteFitbitConnectionByUserId as deleteMemoryConnectionByUserId,
   getFitbitConnectionByFitbitUserId as getMemoryConnectionByFitbitUserId,
+  getFitbitConnectionByUserId as getMemoryConnectionByUserId,
   listFitbitConnections as listMemoryConnections,
   upsertFitbitConnection as upsertMemoryConnection,
 } from "@/lib/memoryStore";
@@ -26,6 +26,8 @@ import {
 export type ConnectionInput = {
   name: string;
   email: string | null;
+  /** The authenticated owner — authorization boundary, never a client-supplied field. */
+  userId: string;
   fitbitUserId: string | null;
   /** Plaintext tokens in — encrypted before being persisted. */
   accessToken: string;
@@ -38,6 +40,7 @@ export type ConnectionInput = {
 export type DecryptedConnection = {
   name: string;
   email: string | null;
+  userId: string | null;
   fitbitUserId: string | null;
   /** Plaintext tokens out — decrypted only in-process, never returned from an API route. */
   accessToken: string;
@@ -51,6 +54,7 @@ function toRow(input: ConnectionInput): Omit<FitbitConnectionRow, "id" | "connec
   return {
     name: input.name,
     email: input.email,
+    user_id: input.userId,
     fitbit_user_id: input.fitbitUserId,
     access_token: encryptToken(input.accessToken),
     refresh_token: encryptToken(input.refreshToken),
@@ -63,6 +67,7 @@ function fromRow(row: FitbitConnectionRow): DecryptedConnection {
   return {
     name: row.name,
     email: row.email,
+    userId: row.user_id,
     fitbitUserId: row.fitbit_user_id,
     accessToken: decryptToken(row.access_token),
     refreshToken: decryptToken(row.refresh_token),
@@ -83,16 +88,17 @@ export async function upsertConnection(input: ConnectionInput): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from("fitbit_connections")
-    .upsert({ ...row, updated_at: new Date().toISOString() }, { onConflict: "name" });
+    .upsert({ ...row, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
 
   if (error) {
     throw new Error(error.message);
   }
 }
 
-export async function getConnection(name: string): Promise<DecryptedConnection | null> {
+/** The signed-in caller's own connection, if any — the only lookup that should back a mutating API route. */
+export async function getConnectionByUserId(userId: string): Promise<DecryptedConnection | null> {
   if (!isSupabaseAdminConfigured()) {
-    const row = getMemoryConnection(name);
+    const row = getMemoryConnectionByUserId(userId);
     return row ? fromRow(row) : null;
   }
 
@@ -100,7 +106,7 @@ export async function getConnection(name: string): Promise<DecryptedConnection |
   const { data, error } = await supabase
     .from("fitbit_connections")
     .select("*")
-    .ilike("name", name)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (error) {
@@ -135,8 +141,9 @@ export async function getConnectionByFitbitUserId(
 
 /**
  * Throws a friendly, user-facing error if `fitbitUserId` is already linked
- * to a *different* participant name. Reconnecting under the *same* name is
- * fine (e.g. a token refresh re-running the OAuth flow) and is a no-op here.
+ * to a *different* authenticated identity. Reconnecting under the *same*
+ * `userId` is fine (e.g. a token refresh re-running the OAuth flow) and is
+ * a no-op here.
  *
  * Callers MUST await this before writing a connection (see
  * app/api/fitbit/callback/route.ts and lib/fitbitMock.ts's `connectMock`) so
@@ -147,25 +154,25 @@ export async function getConnectionByFitbitUserId(
  */
 export async function assertFitbitUserIdAvailable(
   fitbitUserId: string | null | undefined,
-  name: string
+  userId: string
 ): Promise<void> {
   if (!fitbitUserId) return;
   const existing = await getConnectionByFitbitUserId(fitbitUserId);
-  if (existing && existing.name.trim().toLowerCase() !== name.trim().toLowerCase()) {
+  if (existing && existing.userId && existing.userId !== userId) {
     throw new Error(
       `This Fitbit account is already connected under the name "${existing.name}". Each Fitbit account can only join once.`
     );
   }
 }
 
-export async function deleteConnection(name: string): Promise<void> {
+export async function deleteConnectionByUserId(userId: string): Promise<void> {
   if (!isSupabaseAdminConfigured()) {
-    deleteMemoryConnection(name);
+    deleteMemoryConnectionByUserId(userId);
     return;
   }
 
   const supabase = getSupabaseAdminClient();
-  const { error } = await supabase.from("fitbit_connections").delete().ilike("name", name);
+  const { error } = await supabase.from("fitbit_connections").delete().eq("user_id", userId);
   if (error) {
     throw new Error(error.message);
   }

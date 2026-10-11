@@ -42,15 +42,16 @@ function mockFitbitUserId(name: string): string {
   return `mock-${slug || "user"}`;
 }
 
-export async function connectMock(name: string, email: string | null): Promise<void> {
+export async function connectMock(userId: string, name: string, email: string | null): Promise<void> {
   const fitbitUserId = mockFitbitUserId(name);
   // Validate uniqueness BEFORE writing anything (same rule as the real
   // OAuth callback flow), so a conflict never leaves a partial/stale row.
-  await assertFitbitUserIdAvailable(fitbitUserId, name);
+  await assertFitbitUserIdAvailable(fitbitUserId, userId);
 
   await upsertConnection({
     name,
     email,
+    userId,
     fitbitUserId,
     accessToken: "mock-access-token",
     refreshToken: "mock-refresh-token",
@@ -66,6 +67,6 @@ export async function connectMock(name: string, email: string | null): Promise<v
   // today (never future days), so the leaderboard has something to show
   // immediately after a mock "connect".
   for (let day = startDate; day <= today; day = nextISODay(day)) {
-    await upsertDailySteps({ name, email, steps: randomDailySteps(), entry_date: day });
+    await upsertDailySteps({ name, email, userId, steps: randomDailySteps(), entry_date: day });
   }
 }

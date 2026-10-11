@@ -2,25 +2,52 @@
 
 A tiny, deployable web app for a one-week company "step count give event":
 
-- **`/`** — public participation form: enter your name + optional email,
-  then **connect your Fitbit account**. Your daily step count syncs in
-  automatically all week — no manual entry, no screenshots.
+- **`/`** — participation form, gated behind **email-OTP sign-in**: verify
+  your work email with a one-time code, enter your name, then **connect
+  your Fitbit account**. Your daily step count syncs in automatically all
+  week — no manual entry, no screenshots.
 - **`/leaderboard`** — live leaderboard for the current week (Mon–Sun), with a
   ranked table and a top-10 bar chart, auto-refreshing every 30 seconds.
+  Fully public, no sign-in required to view.
 
 Built with Next.js (App Router, TypeScript), Tailwind CSS, and Supabase
-(Postgres) as the database. No login/auth beyond the Fitbit OAuth
-connection itself — just name-based entries, since this is a casual
-internal event.
+(Postgres + Auth) as the database/identity provider. Participants verify
+their email via Supabase Auth's email-OTP flow — that `user_id` (not a
+self-reported name) is what actually gates who can connect/disconnect
+Fitbit and own step data, since this is a casual internal event that still
+needed to stop one participant from being able to delete another's data.
 
 ## Stack
 
 - Next.js 15 (App Router) + TypeScript
 - Tailwind CSS
-- [Supabase](https://supabase.com) (Postgres) via `@supabase/supabase-js`
+- [Supabase](https://supabase.com) (Postgres + Auth) via `@supabase/supabase-js` and `@supabase/ssr`
 - [Fitbit Web API](https://dev.fitbit.com/build/reference/web-api/) (OAuth2) for automatic step sync
 - [Recharts](https://recharts.org) for the bar chart
 - Deploys for free on [Vercel](https://vercel.com)
+
+## Identity: email-OTP sign-in via Supabase Auth
+
+Participants sign in on `/` with a one-time code sent to their email
+(Supabase Auth's built-in email-OTP flow — no passwords, no separate
+account to create). Once verified, that session's `user_id` becomes the
+real authorization boundary:
+
+- **`fitbit_connections`** and **`steps`** rows are tied to `user_id`, not a
+  self-reported name — so the "Disconnect" button (and every other
+  Fitbit/profile action) can only ever act on the signed-in caller's own
+  data. Previously, anyone could POST a different `name` and delete someone
+  else's connection/steps; that's now impossible since identity comes from
+  the session cookie, never from the request body.
+- **`name` stays a free-text display field** — participants can still pick
+  whatever name they want to show on the leaderboard; it's just no longer
+  the thing that gates access to their own row.
+- **The leaderboard stays fully public and read-only** — no sign-in needed
+  to view `/leaderboard`, and it still aggregates by display `name` exactly
+  as before.
+- A Next.js middleware ([`middleware.ts`](./middleware.ts)) refreshes the
+  Supabase Auth session cookie on every request, per Supabase's official
+  `@supabase/ssr` App Router pattern.
 
 ## Why Fitbit?
 
@@ -61,13 +88,19 @@ phone that syncs its step data into Fitbit) can connect to it.
 
 ## Trying it locally with zero setup (mock mode)
 
+If Supabase env vars aren't set, **sign-in is mocked too**: typing an email
+and clicking "Continue (demo mode)" logs you in instantly with no real OTP
+round trip, storing a simple session cookie
+(see [`lib/mockAuth.ts`](./lib/mockAuth.ts)) — clearly labeled "(demo
+mode)" in the UI.
+
 If `FITBIT_CLIENT_ID` / `FITBIT_CLIENT_SECRET` aren't set, clicking
-**Connect Fitbit** skips the real OAuth round trip entirely: it immediately
-creates a simulated ("mock") connection and generates a few days of
-randomized sample step data for the current week, so you can try the full
-connect → synced data → leaderboard → disconnect flow without ever
-registering a Fitbit app. This is clearly labeled "(demo mode)" in the UI
-wherever it shows up.
+**Connect Fitbit** (after signing in) skips the real OAuth round trip
+entirely: it immediately creates a simulated ("mock") connection and
+generates a few days of randomized sample step data for the current week,
+so you can try the full sign-in → connect → synced data → leaderboard →
+disconnect flow without ever registering a Fitbit app or a real Supabase
+project.
 
 Independently, if Supabase env vars aren't set, both step data and Fitbit
 connections fall back to a simple in-memory store (see
@@ -79,7 +112,8 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and click **Connect
+Open [http://localhost:3000](http://localhost:3000), enter any email and
+click **Continue (demo mode)**, then enter your name and click **Connect
 Fitbit** — you'll see sample data appear within a second or two, and it'll
 show up on [http://localhost:3000/leaderboard](http://localhost:3000/leaderboard).
 
@@ -110,7 +144,21 @@ show up on [http://localhost:3000/leaderboard](http://localhost:3000/leaderboard
    - Alternatively, if you have the [Supabase CLI](https://supabase.com/docs/guides/cli)
      installed and linked to your project, run `supabase db push` from this
      repo instead of using the SQL editor.
-4. Go to **Project Settings → API**. You'll need three values from there:
+   - [`supabase/migrations/0004_fitbit_user_id_unique.sql`](./supabase/migrations/0004_fitbit_user_id_unique.sql) —
+     adds a unique index on `fitbit_user_id` (where not null) so the same
+     physical Fitbit account can't be linked under two different names.
+   - [`supabase/migrations/0005_auth_identity.sql`](./supabase/migrations/0005_auth_identity.sql) —
+     adds `user_id` (references `auth.users`) to both `steps` and
+     `fitbit_connections`, replaces the old name-based unique indexes with
+     `user_id`-scoped ones, and revokes public anon **write** access to
+     `steps` (keeps public **read** access, so the leaderboard stays fully
+     unauthenticated). This is what makes Supabase Auth's email-OTP sign-in
+     the real identity boundary — see [Identity](#identity-email-otp-sign-in-via-supabase-auth)
+     above.
+4. Go to **Project Settings → Authentication → Email** and confirm "Enable
+   email provider" / email OTP is on (it is by default on a fresh project —
+   this is what powers the `/` sign-in flow).
+5. Go to **Project Settings → API**. You'll need three values from there:
    - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
    - **anon public** API key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - **service_role** key → `SUPABASE_SERVICE_ROLE_KEY`
@@ -221,24 +269,32 @@ See [`supabase/migrations/`](./supabase/migrations/) for the full SQL.
 | column       | type      | notes                                   |
 | ------------ | --------- | ---------------------------------------- |
 | `id`         | uuid (pk) | default `gen_random_uuid()`             |
-| `name`       | text      | participant's display name              |
+| `name`       | text      | participant's display name (cosmetic only — see below) |
 | `email`      | text      | optional, used only for de-duping       |
+| `user_id`    | uuid      | references `auth.users(id)` — the real identity/owner |
 | `steps`      | integer   | synced from Fitbit (0–100,000 sanity cap) |
 | `entry_date` | date      | the day the steps were logged           |
 | `created_at` | timestamp | default `now()`                         |
 
-A unique index on `(name, entry_date)` means re-syncing the same name for
-the same day **updates** that day's entry (upsert) rather than creating a
-duplicate row.
+A unique index on `(user_id, entry_date)` (added in migration `0005`) means
+re-syncing the same participant for the same day **updates** that day's
+entry (upsert) rather than creating a duplicate row. `name` is purely a
+display field now — two different signed-in people can share a display
+name without conflict; what actually identifies "whose row is this" is
+`user_id`. Public **read** access remains on this table (so `/leaderboard`
+stays fully unauthenticated); public **write** access was revoked in
+migration `0005` — all writes go through the service-role client,
+server-side, after the writing route has verified the caller's session.
 
 **`fitbit_connections`** — one row per connected participant (server-only, not exposed via the anon key):
 
 | column             | type      | notes                                        |
 | ------------------ | --------- | --------------------------------------------- |
 | `id`               | uuid (pk) | default `gen_random_uuid()`                  |
-| `name`             | text      | participant's display name (unique, case-insensitive) |
+| `name`             | text      | participant's display name (cosmetic only)   |
 | `email`            | text      | optional                                     |
-| `fitbit_user_id`   | text      | Fitbit's user identifier                     |
+| `user_id`          | uuid      | references `auth.users(id)`, unique — the real identity/owner |
+| `fitbit_user_id`   | text      | Fitbit's user identifier (unique where not null, so the same real Fitbit account can't be linked twice) |
 | `access_token`     | text      | encrypted (AES-256-GCM)                      |
 | `refresh_token`    | text      | encrypted (AES-256-GCM)                      |
 | `token_expires_at` | timestamp | used to decide when to refresh               |

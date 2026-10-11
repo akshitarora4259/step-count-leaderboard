@@ -1,20 +1,23 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getConnection } from "@/lib/fitbitConnections";
+import { NextResponse } from "next/server";
+import { getConnectionByUserId } from "@/lib/fitbitConnections";
+import { getCurrentIdentity } from "@/lib/identity";
 
-/** Returns whether a participant currently has a Fitbit connection — never includes tokens. */
-export async function GET(request: NextRequest) {
-  const name = request.nextUrl.searchParams.get("name")?.trim() ?? "";
-  if (!name) {
-    return NextResponse.json({ error: "Name is required." }, { status: 400 });
+/** Returns whether the signed-in caller has a Fitbit connection — never includes tokens. */
+export async function GET() {
+  const identity = await getCurrentIdentity();
+  if (!identity) {
+    return NextResponse.json({ connected: false, signedIn: false });
   }
 
   try {
-    const conn = await getConnection(name);
+    const conn = await getConnectionByUserId(identity.userId);
     if (!conn) {
-      return NextResponse.json({ connected: false });
+      return NextResponse.json({ connected: false, signedIn: true });
     }
     return NextResponse.json({
       connected: true,
+      signedIn: true,
+      name: conn.name,
       isMock: conn.isMock,
       connectedAt: conn.connectedAt,
     });

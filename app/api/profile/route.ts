@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { getConnectionByUserId } from "@/lib/fitbitConnections";
 import { maybeLazySync } from "@/lib/fitbitSync";
+import { getCurrentIdentity } from "@/lib/identity";
 import { getStepsInRange } from "@/lib/steps";
 import { getWeekRange, toISODate } from "@/lib/week";
 
@@ -21,13 +23,22 @@ export type ProfileResponse = {
  * their rank, this week's daily step breakdown, and a couple of simple
  * achievement badges. Reuses the same steps-table aggregation the
  * leaderboard uses so rank stays consistent between the two views.
+ *
+ * Identity (and the display `name` used for the lookup) comes from the
+ * signed-in session's Fitbit connection, not a client-supplied `name` query
+ * param — this guarantees a caller can only ever see their own profile.
  */
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const name = searchParams.get("name")?.trim();
-  if (!name) {
-    return NextResponse.json({ error: "name is required" }, { status: 400 });
+export async function GET() {
+  const identity = await getCurrentIdentity();
+  if (!identity) {
+    return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
   }
+
+  const conn = await getConnectionByUserId(identity.userId);
+  if (!conn) {
+    return NextResponse.json({ error: "No Fitbit connection found." }, { status: 404 });
+  }
+  const name = conn.name;
 
   const { start, startDate, endDate } = getWeekRange();
 
