@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentIdentity } from "@/lib/identity";
 import { getStepsInRange } from "@/lib/steps";
-import { getWeekRange, toISODate } from "@/lib/week";
+import { getEventWeekRange, toISODate } from "@/lib/week";
 
 export type ProfileDay = { date: string; steps: number };
 
@@ -35,7 +35,7 @@ export async function GET() {
     return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
   }
 
-  const { start, startDate, endDate } = getWeekRange();
+  const { start, startDate, endDate } = getEventWeekRange();
 
   let rows;
   try {

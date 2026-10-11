@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStepsInRange } from "@/lib/steps";
-import { getWeekRange } from "@/lib/week";
+import { getEventWeekRange } from "@/lib/week";
 
 export type LeaderboardEntry = {
   name: string;
@@ -18,7 +18,7 @@ export type LeaderboardStats = {
 };
 
 export async function GET() {
-  const { startDate, endDate } = getWeekRange();
+  const { startDate, endDate } = getEventWeekRange();
 
   let rows: { name: string; steps: number; entry_date: string }[];
   try {

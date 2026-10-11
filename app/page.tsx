@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getWeekRange, formatWeekPill, formatShortDate, todayISODate } from "@/lib/week";
+import { getEventWeekRange, formatWeekPill, formatShortDate, todayISODate } from "@/lib/week";
 import { EVENT_START_DATE, EVENT_END_DATE } from "@/lib/constants";
 import { setStoredName, clearStoredName, getStoredName } from "@/lib/clientName";
 import { notify } from "@/lib/toastBus";
@@ -159,7 +159,7 @@ function AuthGate({ auth, onSignedIn }: { auth: AuthState; onSignedIn: (email: s
 }
 
 function Home() {
-  const weekRange = useMemo(() => getWeekRange(), []);
+  const weekRange = useMemo(() => getEventWeekRange(), []);
   const datePill = useMemo(() => formatWeekPill(weekRange), [weekRange]);
   const today = useMemo(() => todayISODate(), []);
 

@@ -4,6 +4,8 @@
  * `getWeekRange` for arbitrary dates instead of only "today".
  */
 
+import { EVENT_START_DATE, EVENT_END_DATE } from "@/lib/constants";
+
 export type WeekRange = {
   /** Monday 00:00:00 of the week, inclusive. */
   start: Date;
@@ -90,4 +92,32 @@ export function formatWeekPill(range: WeekRange): string {
     return `${startDay} - ${endDay} ${MONTH_LABELS[end.getMonth()]}, ${end.getFullYear()}`;
   }
   return `${startDay} ${MONTH_LABELS[start.getMonth()]} - ${endDay} ${MONTH_LABELS[end.getMonth()]}, ${end.getFullYear()}`;
+}
+
+function parseLocalISODate(isoDate: string): Date {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+/**
+ * Returns a `WeekRange`-shaped object for this event's fixed window
+ * (`EVENT_START_DATE`–`EVENT_END_DATE` from lib/constants.ts), rather than
+ * whatever the real-world "current week" happens to be. Use this for all
+ * display/aggregation that should reflect the actual event window (date
+ * pills, leaderboard totals, profile weekly stats) — reserve `getWeekRange`
+ * for genuine "current calendar week" math, if anything still needs it.
+ */
+export function getEventWeekRange(): WeekRange {
+  const start = parseLocalISODate(EVENT_START_DATE);
+  start.setHours(0, 0, 0, 0);
+
+  const end = parseLocalISODate(EVENT_END_DATE);
+  end.setHours(23, 59, 59, 999);
+
+  return {
+    start,
+    end,
+    startDate: EVENT_START_DATE,
+    endDate: EVENT_END_DATE,
+  };
 }

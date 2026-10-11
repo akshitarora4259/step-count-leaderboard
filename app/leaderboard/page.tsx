@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { LeaderboardEntry, LeaderboardStats } from "@/app/api/leaderboard/route";
 import { formatCompactNumber, formatNumber } from "@/lib/format";
-import { formatWeekPill, getWeekRange } from "@/lib/week";
+import { formatWeekPill, getEventWeekRange } from "@/lib/week";
 import { COMMUNITY_IMPACT_GOAL_USD } from "@/lib/constants";
 import { Icon } from "@/components/Icon";
 
@@ -18,7 +18,7 @@ export default function LeaderboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
 
-  const weekRange = useMemo(() => getWeekRange(), []);
+  const weekRange = useMemo(() => getEventWeekRange(), []);
   const datePill = useMemo(() => formatWeekPill(weekRange), [weekRange]);
 
   async function fetchLeaderboard() {
