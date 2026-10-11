@@ -52,6 +52,27 @@ export function getSupabaseClient(): SupabaseClient {
  */
 let adminClient: SupabaseClient | null = null;
 
+/**
+ * Decodes the unsigned `role` claim out of a Supabase API key's JWT payload
+ * (no signature verification — we're not authenticating anything with
+ * this, just reading a non-secret claim for diagnostics). Returns null if
+ * the token isn't a parseable JWT. Used to confirm at runtime whether
+ * SUPABASE_SERVICE_ROLE_KEY actually holds a service_role token rather
+ * than, e.g., the anon key pasted into the wrong env var by mistake.
+ */
+export function getJwtRole(token: string | undefined): string | null {
+  if (!token) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const payload = Buffer.from(parts[1], "base64url").toString("utf8");
+    const role = JSON.parse(payload)?.role;
+    return typeof role === "string" ? role : null;
+  } catch {
+    return null;
+  }
+}
+
 /** True once NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are both set. */
 export function isSupabaseAdminConfigured(): boolean {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
