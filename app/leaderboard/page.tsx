@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { LeaderboardEntry, LeaderboardStats } from "@/app/api/leaderboard/route";
 import { formatCompactNumber, formatNumber } from "@/lib/format";
 import { formatWeekPill, getEventWeekRange } from "@/lib/week";
-import { COMMUNITY_IMPACT_GOAL_USD } from "@/lib/constants";
 import { Icon } from "@/components/Icon";
 
 const POLL_INTERVAL_MS = 30_000;
@@ -49,9 +48,9 @@ export default function LeaderboardPage() {
   const top3 = leaderboard.slice(0, 3);
   const visibleRows = showAll ? leaderboard : leaderboard.slice(0, VISIBLE_ROWS);
 
-  // "72%"-style week-completion stat: reuses the already-computed average
-  // days-logged-out-of-7 across participants from the leaderboard API.
-  const completionPercent = stats?.completionPercent ?? 0;
+  const daysRemaining = stats?.daysRemaining ?? 0;
+  const daysRemainingSmallLabel = daysRemaining > 0 ? "Days Remaining" : "Event Ended";
+  const distanceKm = stats?.totalDistanceKm ?? 0;
 
   if (loading) {
     return (
@@ -129,16 +128,17 @@ export default function LeaderboardPage() {
           </div>
         </article>
         <article>
-          <Icon name="heart" className="summary-icon red-filter" />
+          <Icon name="calendar" className="summary-icon green-filter" />
           <div>
-            {/* Placeholder fundraising goal — see lib/constants.ts. */}
-            <strong>${formatNumber(COMMUNITY_IMPACT_GOAL_USD)}</strong>
-            <small>Community Impact Goal</small>
+            <strong>{daysRemaining > 0 ? formatNumber(daysRemaining) : "0"}</strong>
+            <small>{daysRemainingSmallLabel}</small>
           </div>
         </article>
-        <article className="progress-wrap">
-          <div className="progress-ring" style={{ "--pct": completionPercent } as React.CSSProperties}>
-            <span>{completionPercent}%</span>
+        <article>
+          <Icon name="chart" className="summary-icon yellow-filter" />
+          <div>
+            <strong>{distanceKm.toFixed(1)} km</strong>
+            <small>Distance Walked</small>
           </div>
         </article>
       </div>

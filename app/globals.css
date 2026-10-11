@@ -265,19 +265,6 @@ a { color: inherit; text-decoration: none; }
 .summary-grid strong, .summary-grid small { display: block; }
 .summary-grid strong { color: #111a2f; font-size: 22px; }
 .summary-grid small { font-size: 11px; }
-.progress-wrap { display: flex; }
-.progress-ring {
-  width: 63px;
-  height: 63px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: conic-gradient(#129a45 calc(var(--pct, 0) * 1%), #e6edf2 0);
-  position: relative;
-}
-.progress-ring:before { content: ""; position: absolute; width: 48px; height: 48px; border-radius: 50%; background: white; }
-.progress-ring span { z-index: 1; font-weight: 800; }
-
 .leaderboard-header { display: flex; justify-content: space-between; margin: 0 35px 10px; align-items: end; }
 .leaderboard-header h1 { margin: 0; color: var(--navy); font-size: 28px; }
 .leaderboard-header p { margin: 3px 0; }
