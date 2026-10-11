@@ -379,9 +379,11 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
 .card-heading h2 { font-size: 17px; color: var(--navy); }
 .card-heading span { font-size: 12px; color: #087dcc; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
 .card-heading span .icon { width: 13px; height: 13px; }
-.chart { height: 235px; display: grid; grid-template-columns: 35px 1fr; padding-top: 10px; }
-.y-labels { display: flex; flex-direction: column; justify-content: space-between; font-size: 10px; color: #678; }
+.chart { height: 235px; display: grid; grid-template-columns: 35px 1fr; grid-template-rows: 1fr auto; padding-top: 10px; }
+.y-labels { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; justify-content: space-between; font-size: 10px; color: #678; }
 .bars {
+  grid-column: 2;
+  grid-row: 1;
   border-left: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   background: repeating-linear-gradient(to bottom, transparent 0 48px, #edf1f5 49px);
@@ -393,10 +395,19 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
 }
 .bars > div { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; text-align: center; font-size: 11px; }
 .bars b { font-size: 11px; font-weight: 700; }
-.bars i { display: block; height: var(--h); margin: 4px auto 7px; width: 55%; background: linear-gradient(#a6e1f8, #58bce7); border-radius: 5px 5px 0 0; }
+.bars i { display: block; height: var(--h); margin: 4px auto 0; width: 55%; background: linear-gradient(#a6e1f8, #58bce7); border-radius: 5px 5px 0 0; }
 .bars i.active-bar { background: linear-gradient(#20a9ed, #087fdb); }
-.bars span { margin-bottom: -34px; }
-.bars small { display: block; }
+.bar-labels {
+  grid-column: 2;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 15px;
+  padding: 6px 18px 0;
+  text-align: center;
+  font-size: 11px;
+}
+.bar-labels small { display: block; }
 
 .impact-banner { display: flex; align-items: center; padding: 18px 23px; background: linear-gradient(90deg, #eef9ff, #fff, #fff4d9); }
 .impact-heart { display: inline-flex; width: 36px; height: 36px; margin-right: 18px; }
@@ -464,7 +475,7 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
   .ranking-head span:last-child, .ranking-row .step-bar { display: none; }
   .profile-summary { grid-template-columns: 70px 1fr; }
   .chart { overflow: hidden; }
-  .bars { gap: 4px; padding: 0 3px; }
+  .bars, .bar-labels { gap: 4px; padding-left: 3px; padding-right: 3px; }
   .impact-banner .impact-art { display: none; }
   .rewards-section { align-items: flex-start; flex-direction: column; }
   .reward-copy { max-width: 100%; }
@@ -491,8 +502,8 @@ blockquote .scribble { position: absolute; right: 24px; top: 10px; font-size: 14
   .podium-avatar img { width: 62px; height: 62px; }
   .metric-grid { grid-template-columns: 1fr; }
   .bars b { display: none; }
-  .bars span { font-size: 9px; }
-  .bars small { font-size: 8px; }
+  .bar-labels span { font-size: 9px; }
+  .bar-labels small { font-size: 8px; }
 }
 
 /* ------------------------------------------------------------------ *

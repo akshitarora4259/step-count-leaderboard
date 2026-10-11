@@ -173,20 +173,24 @@ export default function MePage() {
             ))}
           </div>
           <div className="bars">
-            {profile.daily.map((day, i) => {
+            {profile.daily.map((day) => {
               const heightPct = Math.max(2, Math.round((day.steps / chartMax) * 100));
               const isToday = day.date === today;
               return (
                 <div key={day.date}>
                   <b>{day.steps > 0 ? formatCompactNumber(day.steps) : "\u00a0"}</b>
                   <i className={isToday ? "active-bar" : ""} style={{ "--h": `${heightPct}%` } as React.CSSProperties} />
-                  <span>
-                    {DAY_LABELS[i]}
-                    <small>{shortDayDate(day.date)}</small>
-                  </span>
                 </div>
               );
             })}
+          </div>
+          <div className="bar-labels">
+            {profile.daily.map((day, i) => (
+              <span key={day.date}>
+                {DAY_LABELS[i]}
+                <small>{shortDayDate(day.date)}</small>
+              </span>
+            ))}
           </div>
         </div>
       </section>
