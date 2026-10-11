@@ -12,18 +12,125 @@ export const MAX_STEPS = 100_000;
 const [EVENT_YEAR, EVENT_MONTH] = EVENT_START_DATE.split("-").map(Number);
 
 /**
- * Parses OCR'd text for a step count: strips commas/spaces (common
- * thousands-separator noise from screenshots, e.g. "8,432" or "8 432"),
- * then takes the longest contiguous run of digits left in the text — on a
- * typical step-tracker screenshot, the step count is almost always the
- * largest number shown (dates, times, and goals tend to be shorter).
+ * Prefers a number token that already looks like a comma-grouped thousands
+ * number (e.g. "8,966", "10,482") over a bare digit run, since a genuine
+ * step count almost always displays with thousands separators on these
+ * screenshots — this lets label-anchored lookups above a label-free "Steps"
+ * mention skip past small unrelated numbers.
+ */
+const NUMBER_TOKEN_SOURCE = String.raw`\d{1,3}(?:,\d{3})+|\d+`;
+
+const STEPS_LABEL = /steps\b/gi;
+
+function toStepValue(token: string): number | null {
+  const value = parseInt(token.replace(/,/g, ""), 10);
+  if (!Number.isFinite(value)) return null;
+  if (value < MIN_STEPS || value > MAX_STEPS) return null;
+  return value;
+}
+
+/**
+ * Looks for a number near each "Steps" label occurrence in the OCR'd text —
+ * real step-tracker screenshots almost always put the count right next to
+ * that word, so anchoring on the label is far more reliable than scanning
+ * the whole screen for "the longest number" (which can be fooled by an
+ * unrelated number of similar or greater length, e.g. a calendar/date
+ * artifact, a calorie total, or a distance reading).
+ *
+ * Candidates are ranked in tiers, favoring layout locality over raw
+ * character distance (a naive "nearest char wins" approach can be fooled by
+ * an unrelated number on the *previous* line being textually closer than
+ * the real value one line below):
+ *   1. same line as the label, in either direction — covers "Steps: 8,966"
+ *      and "12,345 steps" layouts.
+ *   2. the line immediately after the label's line — covers the common
+ *      stacked "Steps\n8,966" layout (and "Steps\nDistance\n8,966", where
+ *      an intervening same-line sibling label has no digits to match).
+ * Within a tier, the textually closest candidate wins.
+ */
+function parseStepCountNearLabel(rawText: string): number | null {
+  const labelRegex = new RegExp(STEPS_LABEL.source, STEPS_LABEL.flags);
+  const numberToken = new RegExp(NUMBER_TOKEN_SOURCE, "g");
+  let match: RegExpExecArray | null;
+  const candidates: { value: number; tier: number; distance: number }[] = [];
+
+  const collectForward = (segment: string, tier: number, baseOffset: number) => {
+    numberToken.lastIndex = 0;
+    let tokenMatch: RegExpExecArray | null;
+    while ((tokenMatch = numberToken.exec(segment)) !== null) {
+      const value = toStepValue(tokenMatch[0]);
+      if (value !== null) candidates.push({ value, tier, distance: baseOffset + tokenMatch.index });
+    }
+  };
+
+  const collectBackward = (segment: string, tier: number) => {
+    numberToken.lastIndex = 0;
+    let tokenMatch: RegExpExecArray | null;
+    while ((tokenMatch = numberToken.exec(segment)) !== null) {
+      const value = toStepValue(tokenMatch[0]);
+      if (value !== null) {
+        candidates.push({ value, tier, distance: segment.length - (tokenMatch.index + tokenMatch[0].length) });
+      }
+    }
+  };
+
+  while ((match = labelRegex.exec(rawText)) !== null) {
+    const labelStart = match.index;
+    const labelEnd = labelStart + match[0].length;
+
+    // Forward: same line, then the next line.
+    const after = rawText.slice(labelEnd, labelEnd + 200);
+    const afterNewline = after.indexOf("\n");
+    const sameLineAfter = afterNewline === -1 ? after : after.slice(0, afterNewline);
+    collectForward(sameLineAfter, 0, 0);
+    if (afterNewline !== -1) {
+      const rest = after.slice(afterNewline + 1);
+      const restNewline = rest.indexOf("\n");
+      const nextLineAfter = restNewline === -1 ? rest : rest.slice(0, restNewline);
+      collectForward(nextLineAfter, 1, afterNewline + 1);
+    }
+
+    // Backward: same line only — a preceding line is too likely to belong
+    // to an unrelated stat (e.g. "TOTAL 2,070 KCAL" directly above "Steps").
+    const before = rawText.slice(Math.max(0, labelStart - 80), labelStart);
+    const beforeNewline = before.lastIndexOf("\n");
+    const sameLineBefore = beforeNewline === -1 ? before : before.slice(beforeNewline + 1);
+    collectBackward(sameLineBefore, 0);
+  }
+
+  if (candidates.length === 0) return null;
+  const best = candidates.reduce((a, b) =>
+    b.tier < a.tier || (b.tier === a.tier && b.distance < a.distance) ? b : a
+  );
+  return best.value;
+}
+
+/**
+ * Parses OCR'd text for a step count.
+ *
+ * Primary strategy: look for a number right next to a "Steps" label (see
+ * `parseStepCountNearLabel`) — real step-tracker screenshots almost always
+ * have one, and anchoring on it avoids misreading an unrelated number.
+ *
+ * Fallback (no "Steps" label found, or no valid number near it): strip
+ * thousands-separator commas *within* number tokens only — deliberately
+ * NOT whitespace — then take the longest contiguous digit run left. Only
+ * stripping commas (not spaces/newlines) matters: on a real screenshot,
+ * genuinely separate on-screen numbers (a time, a date, a calorie total)
+ * are usually whitespace-separated in the OCR output, and merging them
+ * together by stripping that whitespace can produce a spurious longer
+ * "number" that beats the real step count — exactly the bug this guards
+ * against.
  *
  * Returns null if no digit sequence is found, or if the detected number
  * falls outside the plausible 0–100,000 daily step range (guards against
  * misreads like a 6-digit phone-status-bar time or a stray long number).
  */
 export function parseStepCount(rawText: string): number | null {
-  const cleaned = rawText.replace(/[,\s]/g, "");
+  const nearLabel = parseStepCountNearLabel(rawText);
+  if (nearLabel !== null) return nearLabel;
+
+  const cleaned = rawText.replace(/,/g, "");
   const matches = cleaned.match(/\d+/g);
   if (!matches || matches.length === 0) return null;
 
