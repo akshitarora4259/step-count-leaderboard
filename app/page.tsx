@@ -130,8 +130,8 @@ function AuthGate({ auth, onSignedIn }: { auth: AuthState; onSignedIn: (email: s
         required
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder="Work email"
-        aria-label="Work email"
+        placeholder="Email"
+        aria-label="Email"
         disabled={codeSent}
       />
       {!isMock && codeSent && (
