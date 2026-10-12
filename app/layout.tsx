@@ -28,6 +28,12 @@ export default function RootLayout({
         <div className="site-shell">
           <NavBar />
           <main>{children}</main>
+          <footer className="site-footer">
+            <p>
+              Questions or issues? Reach out to Akshit Arora (akshitarora) / Saket Rungta
+              (saketrungta).
+            </p>
+          </footer>
         </div>
         <ToastHost />
       </body>
