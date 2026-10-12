@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentIdentity } from "@/lib/identity";
-import { getJwtRole } from "@/lib/supabase";
 import { isValidEntryDate } from "@/lib/eventWindow";
 import { extractStepsAndDateFromImage } from "@/lib/ocr";
 import { deleteScreenshot, uploadScreenshot } from "@/lib/screenshotStorage";
@@ -138,16 +137,7 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     await deleteScreenshot(path);
     const message = err instanceof Error ? err.message : "Failed to save your steps.";
-    // TEMP diagnostic (remove once the permission-denied issue is
-    // resolved): surface which Postgres role the configured service-role
-    // key actually carries, to confirm/rule out a misconfigured env var
-    // without ever exposing the key itself.
-    const serviceRole = getJwtRole(process.env.SUPABASE_SERVICE_ROLE_KEY);
-    const anonRole = getJwtRole(process.env.NEXT_SUPABASE_ANON_KEY);
-    return NextResponse.json(
-      { error: `${message} [debug: serviceKeyRole=${serviceRole}, anonKeyRole=${anonRole}]` },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
   return NextResponse.json({ steps, entry_date: entryDate });
