@@ -272,7 +272,7 @@ function Home() {
   async function handleUpload() {
     const trimmed = name.trim();
     if (!trimmed) {
-      notify("Please enter your name first.");
+      notify("Please enter your alias first.");
       return;
     }
     if (!file) {
@@ -364,8 +364,8 @@ function Home() {
                   maxLength={100}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Your name"
-                  aria-label="Your name"
+                  placeholder="Alias"
+                  aria-label="Alias"
                 />
               </div>
 
