@@ -337,18 +337,33 @@ async function preprocessForOcr(buffer: Buffer): Promise<Buffer> {
 export async function extractStepsAndDateFromImage(buffer: Buffer): Promise<OcrResult> {
   const worker = await createWorker("eng", 1, { langPath: LANG_PATH, gzip: true, cacheMethod: "none" });
   try {
-    const ocrInput = await preprocessForOcr(buffer).catch(() => buffer);
-    const {
-      data: { text, blocks },
-    } = await worker.recognize(ocrInput, {}, { blocks: true });
-    let steps = parseStepCount(text);
+    // Try the original image first — it's also faster, since most real
+    // screenshots don't need any help. Preprocessing (upscale/sharpen/
+    // contrast-normalize) is a deliberate accuracy boost for genuinely
+    // low-resolution crops, but testing against a real submitted photo (a
+    // close-up of a curved, glare-y watch face) showed it can go the other
+    // way: tesseract read the *raw* image correctly, while the "enhanced"
+    // version turned it into unrecognizable noise. So preprocessing is now
+    // only applied as a fallback, when the raw pass finds nothing.
+    const raw = await worker.recognize(buffer, {}, { blocks: true });
+    let steps = parseStepCount(raw.data.text);
+    let detectedDate = extractDateFromText(raw.data.text);
+
     if (steps === null) {
-      // Last resort, only reached when neither the label-anchored nor the
-      // generic-fallback number search above found anything at all: see
-      // iconMatch.ts for why this is deliberately a weak, best-effort signal.
-      steps = await matchStepsNearFootprintIcon(ocrInput, blocks);
+      const ocrInput = await preprocessForOcr(buffer).catch(() => buffer);
+      const preprocessed = await worker.recognize(ocrInput, {}, { blocks: true });
+      steps = parseStepCount(preprocessed.data.text);
+      detectedDate ??= extractDateFromText(preprocessed.data.text);
+
+      if (steps === null) {
+        // Last resort, only reached when neither pass above found a label-
+        // anchored nor generic-fallback number at all: see iconMatch.ts for
+        // why this is deliberately a weak, best-effort signal.
+        steps = await matchStepsNearFootprintIcon(ocrInput, preprocessed.data.blocks);
+      }
     }
-    return { steps, detectedDate: extractDateFromText(text) };
+
+    return { steps, detectedDate };
   } finally {
     await worker.terminate();
   }
