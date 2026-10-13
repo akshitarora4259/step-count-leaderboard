@@ -1,4 +1,5 @@
 import path from "path";
+import sharp from "sharp";
 import { createWorker } from "tesseract.js";
 import { EVENT_START_DATE } from "./constants";
 
@@ -29,7 +30,13 @@ const [EVENT_YEAR, EVENT_MONTH] = EVENT_START_DATE.split("-").map(Number);
  */
 const NUMBER_TOKEN_SOURCE = String.raw`\d{1,3}(?:,\d{3})+|\d+`;
 
-const STEPS_LABEL = /steps\b/gi;
+// Tolerates the handful of OCR letter/digit confusions tesseract commonly
+// makes on this exact word in small, low-contrast fitness-app UI text:
+// "S"→"5", "t"→"7"/"+", "e"→"3". Each position only swaps in a visually
+// similar character (never a free-for-all fuzzy match), so this still can't
+// match unrelated words — it just also catches "5teps", "st3ps", "5t3p5",
+// etc. alongside plain "steps"/"Steps".
+const STEPS_LABEL = /\b[s5][t7+][e3]p[s5]\b/gi;
 
 function toStepValue(token: string): number | null {
   const value = parseInt(token.replace(/,/g, ""), 10);
@@ -55,6 +62,9 @@ function toStepValue(token: string): number | null {
  *   2. the line immediately after the label's line — covers the common
  *      stacked "Steps\n8,966" layout (and "Steps\nDistance\n8,966", where
  *      an intervening same-line sibling label has no digits to match).
+ *   3. two lines after the label's line — covers a second intervening
+ *      sibling line before the count (e.g. "Steps\nGoal: 10,000\n8,966" or
+ *      a stray OCR'd blank/noise line between the label and its value).
  * Within a tier, the textually closest candidate wins.
  */
 function parseStepCountNearLabel(rawText: string): number | null {
@@ -87,7 +97,7 @@ function parseStepCountNearLabel(rawText: string): number | null {
     const labelStart = match.index;
     const labelEnd = labelStart + match[0].length;
 
-    // Forward: same line, then the next line.
+    // Forward: same line, then the next line, then one line further.
     const after = rawText.slice(labelEnd, labelEnd + 200);
     const afterNewline = after.indexOf("\n");
     const sameLineAfter = afterNewline === -1 ? after : after.slice(0, afterNewline);
@@ -97,6 +107,12 @@ function parseStepCountNearLabel(rawText: string): number | null {
       const restNewline = rest.indexOf("\n");
       const nextLineAfter = restNewline === -1 ? rest : rest.slice(0, restNewline);
       collectForward(nextLineAfter, 1, afterNewline + 1);
+      if (restNewline !== -1) {
+        const rest2 = rest.slice(restNewline + 1);
+        const rest2Newline = rest2.indexOf("\n");
+        const lineAfterNext = rest2Newline === -1 ? rest2 : rest2.slice(0, rest2Newline);
+        collectForward(lineAfterNext, 2, afterNewline + 1 + restNewline + 1);
+      }
     }
 
     // Backward: same line only — a preceding line is too likely to belong
@@ -265,6 +281,38 @@ export type OcrResult = {
 };
 
 /**
+ * Minimum pixel width screenshots are upscaled to before OCR. Many phone
+ * step-tracker widgets/screenshots are cropped small, and tesseract's
+ * accuracy drops sharply on low-resolution text — upscaling (with a
+ * smooth resampling kernel) gives it more pixels per character to work
+ * with even though no new detail is actually created.
+ */
+const OCR_MIN_WIDTH = 1200;
+
+/**
+ * Prepares a screenshot for OCR: auto-rotates using EXIF orientation,
+ * converts to grayscale (color/background noise doesn't help tesseract and
+ * can hurt it), normalizes contrast (stretches the histogram so faint/
+ * low-contrast text — a common issue with screenshots of bright phone
+ * screens or screen-recordings — becomes more distinguishable from its
+ * background), sharpens, and upscales small images (see `OCR_MIN_WIDTH`).
+ *
+ * Deliberately permissive on failure: if sharp can't process the input for
+ * any reason (corrupt/unsupported image data), the caller falls back to the
+ * original buffer rather than failing the whole upload over a preprocessing
+ * error — preprocessing is a best-effort accuracy boost, not a requirement.
+ */
+async function preprocessForOcr(buffer: Buffer): Promise<Buffer> {
+  const image = sharp(buffer).rotate();
+  const metadata = await image.metadata();
+  let pipeline = image.grayscale().normalize();
+  if (metadata.width && metadata.width < OCR_MIN_WIDTH) {
+    pipeline = pipeline.resize({ width: OCR_MIN_WIDTH, kernel: "lanczos3" });
+  }
+  return pipeline.sharpen().toFormat("png").toBuffer();
+}
+
+/**
  * Runs OCR on an uploaded screenshot (as a raw image buffer) and extracts
  * both the step count and (if present) a date shown in the image, from a
  * single recognition pass.
@@ -277,9 +325,10 @@ export type OcrResult = {
 export async function extractStepsAndDateFromImage(buffer: Buffer): Promise<OcrResult> {
   const worker = await createWorker("eng", 1, { langPath: LANG_PATH, gzip: true, cacheMethod: "none" });
   try {
+    const ocrInput = await preprocessForOcr(buffer).catch(() => buffer);
     const {
       data: { text },
-    } = await worker.recognize(buffer);
+    } = await worker.recognize(ocrInput);
     return { steps: parseStepCount(text), detectedDate: extractDateFromText(text) };
   } finally {
     await worker.terminate();
