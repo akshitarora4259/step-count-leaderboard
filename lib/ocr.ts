@@ -1,7 +1,9 @@
 import path from "path";
 import sharp from "sharp";
 import { createWorker } from "tesseract.js";
+import type Tesseract from "tesseract.js";
 import { EVENT_START_DATE } from "./constants";
+import { matchFootprintIcon } from "./iconMatch";
 
 // Bundled locally (see /tessdata) so OCR never has to fetch the ~11MB
 // eng.traineddata.gz from jsdelivr's CDN at runtime — on Vercel, every cold
@@ -22,13 +24,22 @@ export const MAX_STEPS = 100_000;
 const [EVENT_YEAR, EVENT_MONTH] = EVENT_START_DATE.split("-").map(Number);
 
 /**
- * Prefers a number token that already looks like a comma-grouped thousands
- * number (e.g. "8,966", "10,482") over a bare digit run, since a genuine
- * step count almost always displays with thousands separators on these
- * screenshots — this lets label-anchored lookups above a label-free "Steps"
- * mention skip past small unrelated numbers.
+ * Prefers a number token that already looks like a thousands-grouped
+ * number (e.g. "8,966", "10,482", or the period-grouped "07.513" some
+ * watch faces use as a regional thousands separator) over a bare digit
+ * run, since a genuine step count almost always displays with a thousands
+ * separator on these screenshots — this lets label-anchored lookups above
+ * a label-free "Steps" mention skip past small unrelated numbers.
+ *
+ * Accepting "." alongside "," does carry a small false-positive risk: a
+ * 3-decimal-place distance reading (e.g. "5.203 km") would also match and
+ * look like a plausible step count. This only matters when no "Steps"
+ * label is found at all (the label-anchored path always wins when a label
+ * exists) — in that already-ambiguous fallback case, treating a candidate
+ * thousands-grouped number as more likely than a bare short digit run is
+ * still the better bet.
  */
-const NUMBER_TOKEN_SOURCE = String.raw`\d{1,3}(?:,\d{3})+|\d+`;
+const NUMBER_TOKEN_SOURCE = String.raw`\d{1,3}(?:[.,]\d{3})+|\d+`;
 
 // Tolerates the handful of OCR letter/digit confusions tesseract commonly
 // makes on this exact word in small, low-contrast fitness-app UI text:
@@ -39,7 +50,7 @@ const NUMBER_TOKEN_SOURCE = String.raw`\d{1,3}(?:,\d{3})+|\d+`;
 const STEPS_LABEL = /\b[s5][t7+][e3]p[s5]\b/gi;
 
 function toStepValue(token: string): number | null {
-  const value = parseInt(token.replace(/,/g, ""), 10);
+  const value = parseInt(token.replace(/[.,]/g, ""), 10);
   if (!Number.isFinite(value)) return null;
   if (value < MIN_STEPS || value > MAX_STEPS) return null;
   return value;
@@ -155,18 +166,19 @@ export function parseStepCount(rawText: string): number | null {
   const nearLabel = parseStepCountNearLabel(rawText);
   if (nearLabel !== null) return nearLabel;
 
-  const cleaned = rawText.replace(/,/g, "");
-  const matches = cleaned.match(/\d+/g);
+  // Reuse the same thousands-grouping-aware tokenizer as the label-anchored
+  // path (rather than a blanket comma-strip) so a grouped number like
+  // "07.513" is treated as one 5-digit token instead of being split at the
+  // separator into unrelated "07" and "513" runs.
+  const numberToken = new RegExp(NUMBER_TOKEN_SOURCE, "g");
+  const matches = rawText.match(numberToken);
   if (!matches || matches.length === 0) return null;
 
   const longest = matches.reduce((best, candidate) =>
-    candidate.length > best.length ? candidate : best
+    candidate.replace(/[.,]/g, "").length > best.replace(/[.,]/g, "").length ? candidate : best
   );
 
-  const value = parseInt(longest, 10);
-  if (!Number.isFinite(value)) return null;
-  if (value < MIN_STEPS || value > MAX_STEPS) return null;
-  return value;
+  return toStepValue(longest);
 }
 
 const MONTH_NAMES: Record<string, number> = {
@@ -327,10 +339,77 @@ export async function extractStepsAndDateFromImage(buffer: Buffer): Promise<OcrR
   try {
     const ocrInput = await preprocessForOcr(buffer).catch(() => buffer);
     const {
-      data: { text },
-    } = await worker.recognize(ocrInput);
-    return { steps: parseStepCount(text), detectedDate: extractDateFromText(text) };
+      data: { text, blocks },
+    } = await worker.recognize(ocrInput, {}, { blocks: true });
+    let steps = parseStepCount(text);
+    if (steps === null) {
+      // Last resort, only reached when neither the label-anchored nor the
+      // generic-fallback number search above found anything at all: see
+      // iconMatch.ts for why this is deliberately a weak, best-effort signal.
+      steps = await matchStepsNearFootprintIcon(ocrInput, blocks);
+    }
+    return { steps, detectedDate: extractDateFromText(text) };
   } finally {
     await worker.terminate();
+  }
+}
+
+/**
+ * Flattens tesseract's nested blocks → paragraphs → lines structure into a
+ * single list of recognized words, each with its bounding box.
+ */
+function collectWords(blocks: Tesseract.Page["blocks"]): Tesseract.Word[] {
+  const words: Tesseract.Word[] = [];
+  for (const block of blocks ?? []) {
+    for (const paragraph of block.paragraphs) {
+      for (const line of paragraph.lines) {
+        words.push(...line.words);
+      }
+    }
+  }
+  return words;
+}
+
+/**
+ * Maximum distance (as a fraction of the image diagonal) an OCR'd number is
+ * allowed to be from the matched icon location to be attributed to it.
+ * Generous on purpose — the icon match's own location is already imprecise
+ * (see iconMatch.ts) — but still bounded so a number on the opposite side of
+ * the screen can't be mistakenly picked up.
+ */
+const ICON_MATCH_MAX_DISTANCE_FRACTION = 0.2;
+
+/**
+ * Finds the OCR'd number word closest to the bundled footstep icon's
+ * best-guess location in `ocrInput`, if the icon was confidently matched and
+ * a plausible number sits near enough to it. Returns null on any failure or
+ * if no suitable candidate is found — icon matching is a best-effort bonus
+ * signal, never something that should fail the whole OCR pipeline over.
+ */
+async function matchStepsNearFootprintIcon(
+  ocrInput: Buffer,
+  blocks: Tesseract.Page["blocks"]
+): Promise<number | null> {
+  try {
+    const match = await matchFootprintIcon(ocrInput);
+    if (!match) return null;
+
+    const metadata = await sharp(ocrInput).metadata();
+    const maxDistance =
+      Math.hypot(metadata.width ?? 0, metadata.height ?? 0) * ICON_MATCH_MAX_DISTANCE_FRACTION;
+
+    let best: { value: number; distance: number } | null = null;
+    for (const word of collectWords(blocks)) {
+      const value = toStepValue(word.text.trim());
+      if (value === null) continue;
+      const centerX = (word.bbox.x0 + word.bbox.x1) / 2;
+      const centerY = (word.bbox.y0 + word.bbox.y1) / 2;
+      const distance = Math.hypot(centerX - match.x, centerY - match.y);
+      if (distance > maxDistance) continue;
+      if (!best || distance < best.distance) best = { value, distance };
+    }
+    return best?.value ?? null;
+  } catch {
+    return null;
   }
 }

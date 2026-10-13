@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
   //    "ENOENT .../tesseract-core-relaxedsimd.wasm" crash that hung the
   //    request until the function timed out, rather than failing fast.
   outputFileTracingIncludes: {
-    "/api/steps/upload": ["./tessdata/**", "./node_modules/tesseract.js-core/**"],
+    "/api/steps/upload": ["./tessdata/**", "./node_modules/tesseract.js-core/**", "./ocrTemplates/**"],
   },
 };
 
