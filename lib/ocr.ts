@@ -64,32 +64,59 @@ function toStepValue(token: string): number | null {
  * unrelated number of similar or greater length, e.g. a calendar/date
  * artifact, a calorie total, or a distance reading).
  *
- * Candidates are ranked in tiers, favoring layout locality over raw
- * character distance (a naive "nearest char wins" approach can be fooled by
- * an unrelated number on the *previous* line being textually closer than
- * the real value one line below):
- *   1. same line as the label, in either direction — covers "Steps: 8,966"
- *      and "12,345 steps" layouts.
- *   2. the line immediately after the label's line — covers the common
- *      stacked "Steps\n8,966" layout (and "Steps\nDistance\n8,966", where
- *      an intervening same-line sibling label has no digits to match).
- *   3. two lines after the label's line — covers a second intervening
- *      sibling line before the count (e.g. "Steps\nGoal: 10,000\n8,966" or
- *      a stray OCR'd blank/noise line between the label and its value).
- * Within a tier, the textually closest candidate wins.
+ * Screens often mention "Steps" more than once (a page title, a section
+ * header, *and* the actual value's caption), so candidates are gathered
+ * from every occurrence and then ranked by two signals, in this order:
+ *   1. Whether the number has a thousands separator (e.g. "5,301" vs a
+ *      bare "7"). A genuine step count displayed on these UIs is almost
+ *      always separator-grouped; a short ungrouped digit run is far more
+ *      likely to be OCR noise or an unrelated nearby value (a misread
+ *      clock time, a goal fragment, etc.) — so a grouped number always
+ *      wins over an ungrouped one, regardless of which tier/label found
+ *      it. This directly guards against an unrelated label (e.g. a
+ *      "Steps by time of day" section header) happening to sit closer to
+ *      some unrelated short number than the real label sits to the real
+ *      value.
+ *   2. Layout locality tier, favoring proximity over raw character
+ *      distance (a naive "nearest char wins" approach can be fooled by an
+ *      unrelated number on an adjacent line being textually closer than
+ *      the real value one more line away):
+ *      - tier 0: same line as the label, in either direction — covers
+ *        "Steps: 8,966" and "12,345 steps" layouts.
+ *      - tier 1 (forward only): the line immediately after the label's
+ *        line — covers the common stacked "Steps\n8,966" layout (and
+ *        "Steps\nDistance\n8,966", where an intervening same-line sibling
+ *        label has no digits to match).
+ *      - tier 2 (forward only): two lines after the label's line — covers
+ *        a second intervening sibling line before the count (e.g.
+ *        "Steps\nGoal: 10,000\n8,966" or a stray OCR'd noise line).
+ *      Backward search is deliberately same-line-only (no tier 1/2): a
+ *      preceding line is too likely to belong to an unrelated stat
+ *      directly above the label (e.g. "TOTAL 2,070 KCAL" stacked right
+ *      before "Steps"), and the grouped-number preference above alone
+ *      can't disambiguate that from a genuine value — both are grouped.
+ * Within matching separator-grouping and tier, the textually closest
+ * candidate wins.
  */
 function parseStepCountNearLabel(rawText: string): number | null {
   const labelRegex = new RegExp(STEPS_LABEL.source, STEPS_LABEL.flags);
   const numberToken = new RegExp(NUMBER_TOKEN_SOURCE, "g");
   let match: RegExpExecArray | null;
-  const candidates: { value: number; tier: number; distance: number }[] = [];
+  const candidates: { value: number; grouped: boolean; tier: number; distance: number }[] = [];
 
   const collectForward = (segment: string, tier: number, baseOffset: number) => {
     numberToken.lastIndex = 0;
     let tokenMatch: RegExpExecArray | null;
     while ((tokenMatch = numberToken.exec(segment)) !== null) {
       const value = toStepValue(tokenMatch[0]);
-      if (value !== null) candidates.push({ value, tier, distance: baseOffset + tokenMatch.index });
+      if (value !== null) {
+        candidates.push({
+          value,
+          grouped: /[.,]/.test(tokenMatch[0]),
+          tier,
+          distance: baseOffset + tokenMatch.index,
+        });
+      }
     }
   };
 
@@ -99,35 +126,48 @@ function parseStepCountNearLabel(rawText: string): number | null {
     while ((tokenMatch = numberToken.exec(segment)) !== null) {
       const value = toStepValue(tokenMatch[0]);
       if (value !== null) {
-        candidates.push({ value, tier, distance: segment.length - (tokenMatch.index + tokenMatch[0].length) });
+        candidates.push({
+          value,
+          grouped: /[.,]/.test(tokenMatch[0]),
+          tier,
+          distance: segment.length - (tokenMatch.index + tokenMatch[0].length),
+        });
       }
     }
+  };
+
+  /** Splits text into up to 3 line segments, nearest-first. */
+  const splitLines = (text: string): string[] => {
+    const lines: string[] = [];
+    let rest = text;
+    for (let i = 0; i < 3; i++) {
+      const newlineIndex = rest.indexOf("\n");
+      if (newlineIndex === -1) {
+        lines.push(rest);
+        break;
+      }
+      lines.push(rest.slice(0, newlineIndex));
+      rest = rest.slice(newlineIndex + 1);
+    }
+    return lines;
   };
 
   while ((match = labelRegex.exec(rawText)) !== null) {
     const labelStart = match.index;
     const labelEnd = labelStart + match[0].length;
 
-    // Forward: same line, then the next line, then one line further.
-    const after = rawText.slice(labelEnd, labelEnd + 200);
-    const afterNewline = after.indexOf("\n");
-    const sameLineAfter = afterNewline === -1 ? after : after.slice(0, afterNewline);
-    collectForward(sameLineAfter, 0, 0);
-    if (afterNewline !== -1) {
-      const rest = after.slice(afterNewline + 1);
-      const restNewline = rest.indexOf("\n");
-      const nextLineAfter = restNewline === -1 ? rest : rest.slice(0, restNewline);
-      collectForward(nextLineAfter, 1, afterNewline + 1);
-      if (restNewline !== -1) {
-        const rest2 = rest.slice(restNewline + 1);
-        const rest2Newline = rest2.indexOf("\n");
-        const lineAfterNext = rest2Newline === -1 ? rest2 : rest2.slice(0, rest2Newline);
-        collectForward(lineAfterNext, 2, afterNewline + 1 + restNewline + 1);
-      }
-    }
+    // Forward: same line as the label, then up to 2 lines after it.
+    const after = rawText.slice(labelEnd, labelEnd + 220);
+    let forwardOffset = 0;
+    splitLines(after).forEach((line, tier) => {
+      collectForward(line, tier, forwardOffset);
+      forwardOffset += line.length + 1;
+    });
 
     // Backward: same line only — a preceding line is too likely to belong
-    // to an unrelated stat (e.g. "TOTAL 2,070 KCAL" directly above "Steps").
+    // to an unrelated stat directly above the label (e.g. "TOTAL 2,070
+    // KCAL" stacked right before "Steps"), which the grouped-number
+    // preference above can't fully disambiguate from a real value.
     const before = rawText.slice(Math.max(0, labelStart - 80), labelStart);
     const beforeNewline = before.lastIndexOf("\n");
     const sameLineBefore = beforeNewline === -1 ? before : before.slice(beforeNewline + 1);
@@ -135,9 +175,11 @@ function parseStepCountNearLabel(rawText: string): number | null {
   }
 
   if (candidates.length === 0) return null;
-  const best = candidates.reduce((a, b) =>
-    b.tier < a.tier || (b.tier === a.tier && b.distance < a.distance) ? b : a
-  );
+  const best = candidates.reduce((a, b) => {
+    if (a.grouped !== b.grouped) return b.grouped ? b : a;
+    if (a.tier !== b.tier) return b.tier < a.tier ? b : a;
+    return b.distance < a.distance ? b : a;
+  });
   return best.value;
 }
 
